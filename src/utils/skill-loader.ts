@@ -1,6 +1,7 @@
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import yaml from 'js-yaml';
+import { warn } from './format.js';
 
 /**
  * Agent Skills standard frontmatter — matches agentskills.io spec exactly.
@@ -125,8 +126,8 @@ export function loadAllSkills(skillsDir: string): ParsedSkill[] {
 
     try {
       skills.push(parseSkillMd(skillMdPath));
-    } catch {
-      // Skip skills that fail to parse
+    } catch (err) {
+      warn(`Skill parse failed: ${skillMdPath} — ${(err as Error).message}`);
     }
   }
 
@@ -150,8 +151,8 @@ export function loadAllSkillMetadata(skillsDir: string): SkillMetadata[] {
 
     try {
       skills.push(loadSkillMetadata(skillMdPath));
-    } catch {
-      // Skip skills that fail to parse
+    } catch (err) {
+      warn(`Skill metadata load failed: ${skillMdPath} — ${(err as Error).message}`);
     }
   }
 
