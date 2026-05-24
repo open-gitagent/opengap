@@ -373,7 +373,8 @@ function buildHooksConfig(agentDir: string): Record<string, any> | null {
     }
 
     return Object.keys(geminiHooks).length > 0 ? geminiHooks : null;
-  } catch {
+  } catch (err) {
+    console.warn(`Hook config parse failed: ${(err as Error).message}`);
     return null;
   }
 }

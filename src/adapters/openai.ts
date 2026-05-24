@@ -31,7 +31,7 @@ export function exportToOpenAI(dir: string): string {
       const funcName = tool.name.replace(/-/g, '_');
       lines.push(`def ${funcName}(${tool.params}):`);
       lines.push(`    """${tool.description}"""`);
-      lines.push(`    # TODO: Implement tool logic`);
+      lines.push(`    # Tool stub — replace with actual ${tool.name} implementation`);
       lines.push(`    pass\n`);
     }
   }

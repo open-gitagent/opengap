@@ -2,6 +2,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { loadSkillMetadata, loadSkillFull, type SkillMetadata, type ParsedSkill } from './skill-loader.js';
+import { warn } from './format.js';
 
 export interface DiscoveredSkill {
   name: string;
@@ -76,8 +77,8 @@ export function discoverSkills(options: DiscoveryOptions): DiscoveredSkill[] {
           directory: meta.directory,
           source,
         });
-      } catch {
-        // Skip unparseable skills
+      } catch (err) {
+        warn(`Skill discovery failed: ${skillMdPath} — ${(err as Error).message}`);
       }
     }
   }
@@ -96,8 +97,8 @@ export function discoverAndLoadSkills(options: DiscoveryOptions): ParsedSkill[] 
     const skillMdPath = join(disc.directory, 'SKILL.md');
     try {
       skills.push(loadSkillFull(skillMdPath));
-    } catch {
-      // Skip skills that fail to load
+    } catch (err) {
+      warn(`Skill load failed: ${skillMdPath} — ${(err as Error).message}`);
     }
   }
 
