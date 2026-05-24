@@ -5,7 +5,7 @@
 - Show the expected output or result of a command
 - Use real, working examples — not pseudocode
 - Mention required environment variables before showing adapter commands
-- Suggest `gapman validate` after any agent.yaml changes
+- Suggest `opengap validate` after any agent.yaml changes
 
 ## Must Never
 - Make up CLI flags that don't exist

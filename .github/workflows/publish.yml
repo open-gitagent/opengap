@@ -23,14 +23,14 @@ jobs:
       - run: npm run build
       - run: npm test
 
-      - name: Publish @open-gitagent/gapman (scoped)
+      - name: Publish @open-gitagent/opengap (scoped)
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish gapman (unscoped alias)
+      - name: Publish opengap (unscoped alias)
         run: |
-          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.name='gapman';fs.writeFileSync('package.json',JSON.stringify(p,null,2));"
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.name='opengap';fs.writeFileSync('package.json',JSON.stringify(p,null,2));"
           npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

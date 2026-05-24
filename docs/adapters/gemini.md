@@ -83,10 +83,10 @@ gemini --version
 
 ```bash
 # Export to stdout
-gapman export --format gemini -d ./my-agent
+opengap export --format gemini -d ./my-agent
 
 # Save to file
-gapman export --format gemini -d ./my-agent -o gemini-export.txt
+opengap export --format gemini -d ./my-agent -o gemini-export.txt
 
 # The export includes both GEMINI.md and .gemini/settings.json content
 ```
@@ -125,13 +125,13 @@ Agent description
 
 ```bash
 # Interactive mode
-gapman run ./my-agent --adapter gemini
+opengap run ./my-agent --adapter gemini
 
 # Single-shot mode with prompt
-gapman run ./my-agent --adapter gemini -p "Explain quantum computing"
+opengap run ./my-agent --adapter gemini -p "Explain quantum computing"
 
 # From git repository
-gapman run --repo https://github.com/user/agent.git --adapter gemini
+opengap run --repo https://github.com/user/agent.git --adapter gemini
 ```
 
 **What Happens:**
@@ -145,11 +145,11 @@ gapman run --repo https://github.com/user/agent.git --adapter gemini
 
 ```bash
 # Import from existing Gemini CLI project
-gapman import --from gemini /path/to/gemini-project -d ./imported-agent
+opengap import --from gemini /path/to/gemini-project -d ./imported-agent
 
 # Verify the imported agent
 cd ./imported-agent
-gapman validate
+opengap validate
 ```
 
 **What Gets Created:**
@@ -326,7 +326,7 @@ hooks:
 
 3. **Create proper tool schemas** - imported tools have minimal schemas
 
-4. **Test the agent** with `gapman validate`
+4. **Test the agent** with `opengap validate`
 
 ### When Running
 

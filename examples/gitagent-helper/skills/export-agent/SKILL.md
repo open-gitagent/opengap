@@ -16,7 +16,7 @@ After exporting, check the output matches expectations:
 
 ```bash
 # Verify export file was created and contains agent name
-gapman export -f system-prompt -d ./my-agent | head -5
+opengap export -f system-prompt -d ./my-agent | head -5
 ```
 
 ## Export
@@ -24,7 +24,7 @@ gapman export -f system-prompt -d ./my-agent | head -5
 Convert a gitagent definition to another framework:
 
 ```bash
-gapman export -f <format> -d ./my-agent [-o output-file]
+opengap export -f <format> -d ./my-agent [-o output-file]
 ```
 
 ### Formats
@@ -44,19 +44,19 @@ gapman export -f <format> -d ./my-agent [-o output-file]
 
 ```bash
 # Get a system prompt for any LLM
-gapman export -f system-prompt -d ./my-agent
+opengap export -f system-prompt -d ./my-agent
 
 # Generate a CLAUDE.md
-gapman export -f claude-code -d ./my-agent -o CLAUDE.md
+opengap export -f claude-code -d ./my-agent -o CLAUDE.md
 
 # Generate Python code for OpenAI
-gapman export -f openai -d ./my-agent -o agent.py
+opengap export -f openai -d ./my-agent -o agent.py
 
 # Preview what Lyzr API will receive
-gapman export -f lyzr -d ./my-agent
+opengap export -f lyzr -d ./my-agent
 
 # Preview GitHub Models payload
-gapman export -f github -d ./my-agent
+opengap export -f github -d ./my-agent
 ```
 
 ## Import
@@ -64,7 +64,7 @@ gapman export -f github -d ./my-agent
 Convert existing agent frameworks into gitagent:
 
 ```bash
-gapman import --from <format> <path> [-d target-dir]
+opengap import --from <format> <path> [-d target-dir]
 ```
 
 ### Sources
@@ -79,11 +79,11 @@ gapman import --from <format> <path> [-d target-dir]
 
 ```bash
 # Import a Claude Code project
-gapman import --from claude ./my-project
+opengap import --from claude ./my-project
 
 # Import from Cursor
-gapman import --from cursor ./.cursorrules
+opengap import --from cursor ./.cursorrules
 
 # Import CrewAI config
-gapman import --from crewai ./crew.yaml -d ./imported
+opengap import --from crewai ./crew.yaml -d ./imported
 ```

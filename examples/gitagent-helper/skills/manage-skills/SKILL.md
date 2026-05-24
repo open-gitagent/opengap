@@ -18,49 +18,49 @@ When a user wants to find skills, install them, create new ones, or understand t
 After installing a skill, confirm it's available:
 
 ```bash
-gapman skills list -d ./my-agent | grep "code-review"
+opengap skills list -d ./my-agent | grep "code-review"
 ```
 
 ## Search Skills
 
 ```bash
 # Search SkillsMP registry
-gapman skills search "code review"
+opengap skills search "code review"
 
 # Search GitHub
-gapman skills search "pdf reader" --provider github
+opengap skills search "pdf reader" --provider github
 
 # Limit results
-gapman skills search "testing" --limit 5
+opengap skills search "testing" --limit 5
 ```
 
 ## Install Skills
 
 ```bash
 # Install from SkillsMP to agent-local skills/
-gapman skills install code-review -d ./my-agent
+opengap skills install code-review -d ./my-agent
 
 # Install globally to ~/.agents/skills/
-gapman skills install code-review --global
+opengap skills install code-review --global
 
 # Install from GitHub
-gapman skills install owner/repo#skills/my-skill --provider github
+opengap skills install owner/repo#skills/my-skill --provider github
 ```
 
 ## List Skills
 
 ```bash
 # Show all discovered skills (local + global)
-gapman skills list -d ./my-agent
+opengap skills list -d ./my-agent
 
 # Only agent-local skills
-gapman skills list -d ./my-agent --local
+opengap skills list -d ./my-agent --local
 ```
 
 ## Inspect a Skill
 
 ```bash
-gapman skills info code-review -d ./my-agent
+opengap skills info code-review -d ./my-agent
 ```
 
 Shows: name, description, license, allowed tools, metadata, optional directories.
@@ -96,7 +96,7 @@ skills:
 
 4. Validate:
 ```bash
-gapman validate -d ./my-agent
+opengap validate -d ./my-agent
 ```
 
 ## Skill Discovery Paths

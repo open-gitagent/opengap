@@ -21,7 +21,7 @@ This gitagent definition faithfully translates the NVIDIA Jinja2 prompts (`orche
 | **SOD enforcement** | Implicit in code | Explicit roles, conflicts, and handoffs validated in CI |
 | **Fork & customize** | Modify Python code | Fork for legal/medical/finance variants without touching code |
 | **Memory** | No persistence across sessions | Version-controlled research session history |
-| **CI/CD** | Manual testing | `gapman validate --compliance` on every push |
+| **CI/CD** | Manual testing | `opengap validate --compliance` on every push |
 | **Audit trail** | None | Every prompt, skill, and rule change traced via git |
 
 ## Quick Start
@@ -30,23 +30,23 @@ This gitagent definition faithfully translates the NVIDIA Jinja2 prompts (`orche
 
 ```bash
 cd examples/nvidia-deep-researcher
-gapman validate --compliance
+opengap validate --compliance
 ```
 
 ### Export
 
 ```bash
 # System prompt (for any LLM)
-gapman export --format system-prompt
+opengap export --format system-prompt
 
 # Claude Code (generates CLAUDE.md)
-gapman export --format claude-code
+opengap export --format claude-code
 ```
 
 ### Info
 
 ```bash
-gapman info
+opengap info
 ```
 
 ## Structure
@@ -88,7 +88,7 @@ cd my-legal-researcher
 # Add legal knowledge docs to knowledge/
 # Update agent.yaml with domain-specific metadata
 
-gapman validate --compliance
+opengap validate --compliance
 ```
 
 No Python code changes needed — just edit the markdown and YAML files.

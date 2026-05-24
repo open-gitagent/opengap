@@ -12,7 +12,7 @@ This document compares gitagent against three common alternatives developers rea
 |-----------|----------|----------------------|---------------|-------------------------------|
 | **Where does the agent live?** | Git repository = the agent | Separate spec file, usually checked into a repo | Config file(s) checked into a repo | Python/TypeScript class, checked into a repo |
 | **Portable across frameworks?** | ✅ Yes — `export` to 9+ targets | ⚠️ Depends on adoption | ❌ No — framework-specific parsers | ❌ No — tied to one framework |
-| **Runnable from repo URL?** | ✅ `gapman run -r github.com/org/agent` | ❌ No | ❌ No | ❌ No |
+| **Runnable from repo URL?** | ✅ `opengap run -r github.com/org/agent` | ❌ No | ❌ No | ❌ No |
 | **Version-controlled identity** | ✅ Git tags = agent versions | ⚠️ Optional | ⚠️ Manual | ⚠️ Git blame only |
 | **Compliance / audit built-in** | ✅ Yes — FINRA, SEC, CFPB, SR 11-7 fields | ❌ No | ❌ No | ❌ No |
 | **Multi-agent topology** | ✅ Native `agents:` block + SOD | ❌ No standard | ❌ No | ⚠️ Framework-specific |
@@ -51,8 +51,8 @@ Many teams define agents with hand-rolled YAML files that are parsed by custom c
 **Raw YAML/JSON** gives you full flexibility but zero standardization. Every team invents their own schema, every framework reads it differently, and there is no tooling layer.
 
 **gitagent** gives you a *community standard* schema with:
-- A validated `agent.yaml` spec (run `gapman validate` to check conformance)
-- A CLI layer (`gapman export`, `gapman run`, `gapman audit`) that acts on the standard
+- A validated `agent.yaml` spec (run `opengap validate` to check conformance)
+- A CLI layer (`opengap export`, `opengap run`, `opengap audit`) that acts on the standard
 - Installable skills from a shared ecosystem (`npx skills add`)
 - A compliance block that maps to real regulatory frameworks (FINRA 3110/4511, SEC 17a-4, SR 11-7, CFPB) — not invented fields
 
@@ -65,11 +65,11 @@ Many teams define agents with hand-rolled YAML files that are parsed by custom c
 
 Raw YAML → gitagent is straightforward:
 ```bash
-gapman init -t minimal  # scaffold the standard layout
+opengap init -t minimal  # scaffold the standard layout
 # copy your system prompt → SOUL.md
 # copy your rules → RULES.md
 # move your config fields into agent.yaml
-gapman validate         # check conformance
+opengap validate         # check conformance
 ```
 
 ---
@@ -88,11 +88,11 @@ LangChain agents, CrewAI agents, AutoGen agents, etc. are all defined as Python 
 **gitagent** sits *above* frameworks. You define the agent once in the standard format, then export to the framework of your choice:
 
 ```bash
-gapman export -f crewai    # → YAML config for CrewAI
-gapman export -f openai    # → Python script for OpenAI Agents SDK
-gapman export -f langchain # → Python script for LangChain
-gapman export -f langgraph # → Python StateGraph for LangGraph
-gapman export -f claude-code  # → CLAUDE.md for Claude Code
+opengap export -f crewai    # → YAML config for CrewAI
+opengap export -f openai    # → Python script for OpenAI Agents SDK
+opengap export -f langchain # → Python script for LangChain
+opengap export -f langgraph # → Python StateGraph for LangGraph
+opengap export -f claude-code  # → CLAUDE.md for Claude Code
 ```
 
 The framework-native implementation becomes a *derived artifact* of the canonical gitagent definition, not the source of truth.
@@ -104,7 +104,7 @@ The framework-native implementation becomes a *derived artifact* of the canonica
 
 ### The hybrid pattern
 
-Many teams combine both: gitagent defines the agent’s identity, compliance, and skills; framework-native code handles tool implementations, memory backends, and custom orchestration. The `gapman export` output is a starting point, not a locked output.
+Many teams combine both: gitagent defines the agent’s identity, compliance, and skills; framework-native code handles tool implementations, memory backends, and custom orchestration. The `opengap export` output is a starting point, not a locked output.
 
 ---
 
@@ -135,7 +135,7 @@ compliance:
       - [maker, checker]  # No agent may both make and check its own work
 ```
 
-Running `gapman audit` against this produces a structured compliance report. No other agent definition format offers this.
+Running `opengap audit` against this produces a structured compliance report. No other agent definition format offers this.
 
 For teams building agents in regulated industries — financial services, healthcare (HIPAA), or any environment governed by SEC/FINRA/CFPB/MiCA rules — gitagent’s compliance model is the primary differentiator.
 

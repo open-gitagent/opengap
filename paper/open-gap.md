@@ -15,7 +15,7 @@ AI agents are being deployed into regulated, high-stakes environments faster tha
 
 Under OpenGAP, an agent is fully described by files in a directory: identity (`SOUL.md`), hard constraints (`RULES.md`), segregation-of-duties (`DUTIES.md`), skills, tools, knowledge, memory, hooks, sub-agents, and regulatory-compliance artifacts. A single canonical definition deterministically exports to **15 execution environments** (Claude Code, OpenAI Agents SDK, CrewAI, Cursor, Gemini CLI, Codex, OpenCode, Kiro, Lyzr, OpenClaw, Nanobot, GitHub Copilot, GitHub Models, GitClaw, system-prompt) with a documented **fidelity profile** per target. **Fourteen lifecycle patterns** — which we show decompose into four meta-patterns: *structural guarantees*, *lifecycle operations*, *collaboration primitives*, and *runtime hooks* — emerge naturally from the git substrate. Compliance is a first-class spec element, mapped onto FINRA 3110/4511/2210, SEC Reg BI/Reg S-P/17a-4, Federal Reserve SR 11-7, and CFPB Circular 2022-03, and enforced through `pre_tool_use` hooks with `fail_open: false` semantics. We prove a simple **structural SOD theorem**: any segregation-of-duties conflict declared in `DUTIES.md` is unbypassable by the agent itself, provided branch-protection rules are active and the agent has no force-push rights.
 
-OpenGAP is MIT-licensed. The reference implementation has **2,700+ GitHub stars**, 21 adapters, 11 runtime runners, and ships as `@open-gitagent/gapman` on npm. This paper consolidates the specification, the adapter model, the patterns, and the compliance framing into a single citable artifact, and sets an agenda for conformance testing, formal SOD verification, and an event schema for regulated agent-to-agent interaction.
+OpenGAP is MIT-licensed. The reference implementation has **2,700+ GitHub stars**, 21 adapters, 11 runtime runners, and ships as `@open-gitagent/opengap` on npm. This paper consolidates the specification, the adapter model, the patterns, and the compliance framing into a single citable artifact, and sets an agenda for conformance testing, formal SOD verification, and an event schema for regulated agent-to-agent interaction.
 
 **Keywords:** AI agents · protocols · version control · governance · segregation of duties · FINRA · SEC · SR 11-7 · model risk management · interoperability · open standards.
 
@@ -136,7 +136,7 @@ LangChain, LangGraph, CrewAI, AutoGen, and similar frameworks define the agent a
 - **Not auditable as a unit.** The agent's rules, identity, and policy are entangled with control flow. A compliance reviewer must read code rather than read a manifest.
 - **Not semantically versioned.** `git diff` between two commits of a LangGraph agent shows line-level changes, not "v2.1.0 changed the supervisory policy from `review_above_cents: 10000` to `review_above_cents: 5000`."
 
-GAP sits **above** frameworks: the canonical definition is the repository, and the framework-native implementation is a *derived artifact* produced by `gapman export`. Teams that already have framework-native agents can adopt GAP incrementally by using `gapman import --from <fmt>` to extract a canonical definition, then treating the framework-native version as a generated output.
+GAP sits **above** frameworks: the canonical definition is the repository, and the framework-native implementation is a *derived artifact* produced by `opengap export`. Teams that already have framework-native agents can adopt GAP incrementally by using `opengap import --from <fmt>` to extract a canonical definition, then treating the framework-native version as a generated output.
 
 ### 3.4 Raw YAML/JSON configuration
 
@@ -231,7 +231,7 @@ Three files carry the agent's normative content. They are read in this order by 
 
 ### 4.5 Capabilities
 
-**Skills** ($S$) are reusable capability modules. Each skill is a directory with `SKILL.md` (Markdown + YAML frontmatter), optional `scripts/`, `references/`, `assets/`, and `examples/`. Skills are installable from a shared registry via `gapman skills install`; one skill can be shared across many agents.
+**Skills** ($S$) are reusable capability modules. Each skill is a directory with `SKILL.md` (Markdown + YAML frontmatter), optional `scripts/`, `references/`, `assets/`, and `examples/`. Skills are installable from a shared registry via `opengap skills install`; one skill can be shared across many agents.
 
 **Tools** ($T$) are MCP-compatible schemas annotated with cost class (`none|low|medium|high`) and side-effect class. Implementations may be local (`tools/name.py`) or remote (URL).
 
@@ -261,7 +261,7 @@ Each hook has a `fail_open` flag. `fail_open: true` means a hook failure is non-
 
 ### 4.7 The manifest
 
-Appendix A excerpts `agent-yaml.schema.json`. The specification currently ships ten JSON schemas covering agent manifest, hooks, hook I/O, tools, skills, knowledge, memory, skillflows, configuration, and marketplace descriptors. Every `agent.yaml` in a GAP repository is validated against the manifest schema by `gapman validate`.
+Appendix A excerpts `agent-yaml.schema.json`. The specification currently ships ten JSON schemas covering agent manifest, hooks, hook I/O, tools, skills, knowledge, memory, skillflows, configuration, and marketplace descriptors. Every `agent.yaml` in a GAP repository is validated against the manifest schema by `opengap validate`.
 
 > **Key insight.** In GAP, every file has a purpose, every purpose has a file, and the tuple $(I, R, D, S, T, K, Me, H, A, C)$ enumerates the complete surface of what an agent is. Compliance review becomes a finite, structural exercise rather than an open-ended code audit.
 
@@ -273,8 +273,8 @@ Appendix A excerpts `agent-yaml.schema.json`. The specification currently ships 
 
 A GAP agent can be consumed in two ways.
 
-- **Export mode.** `gapman export --format <target>` renders the canonical definition into the target framework's native format as a directory or file. The output is deterministic — the same GAP directory yields the same output bytes — and is a reviewable artifact that the team may check into source control, attach to a PR, or hand to auditors.
-- **Runtime mode.** `gapman run --adapter <target> -p "prompt"` performs the equivalent export into a temporary workspace and launches the target runtime over it, either one-shot or interactively.
+- **Export mode.** `opengap export --format <target>` renders the canonical definition into the target framework's native format as a directory or file. The output is deterministic — the same GAP directory yields the same output bytes — and is a reviewable artifact that the team may check into source control, attach to a PR, or hand to auditors.
+- **Runtime mode.** `opengap run --adapter <target> -p "prompt"` performs the equivalent export into a temporary workspace and launches the target runtime over it, either one-shot or interactively.
 
 Export produces an artifact; runtime produces a process. A team that wants reviewable outputs chooses export; a team that wants convenience chooses runtime. Either is GAP-compliant.
 
@@ -364,7 +364,7 @@ The claim is that **structural guarantees are load-bearing for regulated deploym
 
 **P2 — Agent Versioning via Git Tags.** A runtime consumes `github.com/org/agent@v2.1.0`. The version is the deployment unit. Undo history is the commit graph. Rollback is not a database operation but a git operation.
 
-**P4 — CI/CD for Agents.** `gapman validate --compliance` runs on every push via GitHub Actions. A failing manifest blocks merge. Agent quality is treated as code quality. Quarterly validation schedules can be enforced as CI gates.
+**P4 — CI/CD for Agents.** `opengap validate --compliance` runs on every push via GitHub Actions. A failing manifest blocks merge. Agent quality is treated as code quality. Quarterly validation schedules can be enforced as CI gates.
 
 **P5 — Branch-Based Deployment.** `dev`, `staging`, `main` correspond to environments. Promotion is merge. Environment-specific configuration lives in `config/<env>.yaml` and is selected at runtime.
 
@@ -545,7 +545,7 @@ Let $w \in W$ be a trace that contains tool calls attributable to both $r_i$ and
 
 ## 9. Reference Implementation
 
-The reference implementation is **`gapman`** (GAP manager), a TypeScript CLI published to npm as both `@open-gitagent/gapman` (scoped, provenance-signed) and `gapman` (unscoped alias). The repository is [github.com/open-gitagent/gitagent](https://github.com/open-gitagent/gitagent); the license is MIT.
+The reference implementation is **`opengap`** (GAP manager), a TypeScript CLI published to npm as both `@open-gitagent/opengap` (scoped, provenance-signed) and `opengap` (unscoped alias). The repository is [github.com/open-gitagent/gitagent](https://github.com/open-gitagent/gitagent); the license is MIT.
 
 ### 9.1 Verb surface
 
@@ -633,14 +633,14 @@ As of April 2026, the reference repository has:
 - **2,700+ GitHub stars**
 - **21 adapters**, five of which (Cursor, Kiro, Codex, Gemini, OpenCode) were contributed by pull request from *external authors* unaffiliated with the maintainer
 - **15+ closed issues** and active RFC discussions (financial governance, conformance testing, registry trust model)
-- **Provenance-signed** releases on npm under both `@open-gitagent/gapman` and `gapman`
+- **Provenance-signed** releases on npm under both `@open-gitagent/opengap` and `opengap`
 - **Cross-community pollination**: GAP agents appear in registries that predate it (the Lyzr registry) and in new registries that postdate it (GitClaw, the OpenClaw ecosystem)
 
 External adapter contributions are the strongest signal that the protocol is perceived as a **neutral substrate**, not a vendor product. No single contributor has standing to force a breaking change in favor of their framework.
 
 ### 11.2 Export fidelity (empirical)
 
-The fidelity matrix (§5.4, Appendix B) is generated mechanically by running `gapman export --format <target>` over `examples/standard/` and `examples/full/` and diffing the output for the presence of each GAP element. Two headline findings:
+The fidelity matrix (§5.4, Appendix B) is generated mechanically by running `opengap export --format <target>` over `examples/standard/` and `examples/full/` and diffing the output for the presence of each GAP element. Two headline findings:
 
 - **`claude-code` is the only adapter with full fidelity.** GAP and Claude Code were co-designed; the directory layout is nearly isomorphic. Other adapters vary.
 - **Hooks and sub-agents are the most frequently dropped elements.** `cursor`, `gemini`, `codex`, `openai`, and `system-prompt` all drop hooks entirely. Hook-based enforcement is a GAP-native guarantee that degrades gracefully per-target; teams requiring enforcement should choose a target that preserves hooks or should rely on GAP-native runtime modes.
@@ -685,7 +685,7 @@ An open protocol with a dominant reference implementation is one bug report away
 
 ### 12.3 Why a protocol, not a framework
 
-A framework solves problems for the framework's users. A protocol creates a substrate that multiple competing products can build on. OpenGAP chooses the protocol path. The reference implementation `gapman` is one of potentially many, and the specification has deliberate latitude so that vendors add value within their adapters without needing to modify the canonical definition.
+A framework solves problems for the framework's users. A protocol creates a substrate that multiple competing products can build on. OpenGAP chooses the protocol path. The reference implementation `opengap` is one of potentially many, and the specification has deliberate latitude so that vendors add value within their adapters without needing to modify the canonical definition.
 
 ### 12.4 Why git, not a new system
 
@@ -741,7 +741,7 @@ The OpenGAP working group thanks contributors to the reference implementation an
 15. **P. Priyam.** *GitClose: A git-native reference implementation of the monthly financial close using OpenGAP.* 2026. <https://github.com/Priyanshu-Priyam/gitclose>
 16. **OpenGAP Working Group.** *RFC #38 — `compliance.financial_governance` block.* 2026. <https://github.com/open-gitagent/gitagent/issues/38>
 17. **OpenGAP Working Group.** *OpenGAP Specification v0.1.0.* 2026. <https://github.com/open-gitagent/gitagent/blob/main/spec/SPECIFICATION.md>
-18. **OpenGAP Working Group.** *gapman on npm.* 2026. <https://www.npmjs.com/package/@open-gitagent/gapman>
+18. **OpenGAP Working Group.** *opengap on npm.* 2026. <https://www.npmjs.com/package/@open-gitagent/opengap>
 19. **L. Lamport.** *Specifying Systems: The TLA+ Language and Tools for Hardware and Software Engineers.* Addison-Wesley, 2002.
 20. **D. Jackson.** *Software Abstractions: Logic, Language, and Analysis (Alloy).* MIT Press, 2012.
 21. **Commission of the European Union.** *Regulation (EU) 2024/1689 (Artificial Intelligence Act).* 2024.
@@ -816,7 +816,7 @@ The OpenGAP working group thanks contributors to the reference implementation an
 
 **Legend:** **F** = fully preserved · **P** = partially preserved (text present, semantics dropped) · **⊥** = not representable in the target format. Columns correspond to $I$=identity, $R$=rules, $D$=duties, $S$=skills, $T$=tools, $H$=hooks, $Me$=memory, $A$=sub-agents, $C$=compliance.
 
-The CSV source is [`tables/fidelity-matrix.csv`](tables/fidelity-matrix.csv), regenerated by running `gapman export` against `examples/standard/` and `examples/full/` for each adapter.
+The CSV source is [`tables/fidelity-matrix.csv`](tables/fidelity-matrix.csv), regenerated by running `opengap export` against `examples/standard/` and `examples/full/` for each adapter.
 
 ---
 
@@ -857,7 +857,7 @@ A CLI or library is **GAP-conformant at level $k$** iff:
 - **Level 2 (export):** for at least one target $t$, it produces an output artifact whose fidelity profile matches the specification's published profile for $t$.
 - **Level 3 (run):** for at least one target $t$, it launches the target runtime in a way that honors $(R, D, H)$ when those elements are present.
 
-The reference implementation `gapman` is Level 3-conformant on Claude Code, OpenCode, Gemini, CrewAI, OpenAI, Lyzr, OpenClaw, Nanobot, GitHub, and GitClaw.
+The reference implementation `opengap` is Level 3-conformant on Claude Code, OpenCode, Gemini, CrewAI, OpenAI, Lyzr, OpenClaw, Nanobot, GitHub, and GitClaw.
 
 ---
 

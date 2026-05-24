@@ -12,7 +12,7 @@ A clear and concise description of the bug.
 ## Environment
 - **OS**: (e.g., macOS 14, Ubuntu 22.04, Windows 11)
 - **Node.js version**: (e.g., 18.19.0)
-- **gapman version**: (run `gapman --version`)
+- **opengap version**: (run `opengap --version`)
 - **Adapter** (if applicable): (e.g., claude-code, openai, crewai)
 
 ## Steps to Reproduce

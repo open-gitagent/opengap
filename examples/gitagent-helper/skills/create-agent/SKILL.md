@@ -16,7 +16,7 @@ metadata:
 2. Write `agent.yaml` with required fields (see below)
 3. Create `SOUL.md` with agent identity
 4. Add skills, tools, and knowledge as needed
-5. Validate: `gapman validate -d ./my-agent`
+5. Validate: `opengap validate -d ./my-agent`
 
 ## agent.yaml Reference
 

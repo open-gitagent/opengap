@@ -1,10 +1,10 @@
 {
-  "name": "@open-gitagent/gapman",
-  "version": "0.3.2",
-  "description": "GitAgentProtocol (GAP) Manager — framework-agnostic, git-native standard for defining AI agents",
+  "name": "@open-gitagent/opengap",
+  "version": "0.4.0",
+  "description": "OpenGAP — the Git Agent Protocol: a framework-agnostic, git-native standard for defining AI agents",
   "type": "module",
   "bin": {
-    "gapman": "./dist/index.js",
+    "opengap": "./dist/index.js",
     "gitagent": "./dist/index.js"
   },
   "scripts": {
@@ -15,8 +15,9 @@
     "prepublishOnly": "npm run build"
   },
   "keywords": [
+    "opengap",
     "gap",
-    "gapman",
+    "git-agent-protocol",
     "gitagentprotocol",
     "gitagent",
     "ai",

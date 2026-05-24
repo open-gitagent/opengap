@@ -43,7 +43,7 @@ Preferred BibTeX entry (update year and arXiv id once posted):
 
 The fidelity matrix in Appendix B should be regenerated against the current adapters before each submission. The procedure:
 
-1. Run `gapman export --format <adapter> -o /tmp/export-<adapter>` for each of the 15 adapters, against both `examples/standard/` and `examples/full/`.
+1. Run `opengap export --format <adapter> -o /tmp/export-<adapter>` for each of the 15 adapters, against both `examples/standard/` and `examples/full/`.
 2. For each adapter output, check whether each of the nine GAP elements (SOUL, RULES, DUTIES, skills, tools, hooks, memory, sub-agents, compliance) is (F) fully preserved, (P) partially preserved, or (-) absent.
 3. Commit the result to `tables/fidelity-matrix.csv`.
 4. Update the tabular block in `open-gap.tex`, Appendix B, from the CSV.

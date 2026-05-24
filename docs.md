@@ -1,10 +1,10 @@
-# GitAgentProtocol (Open GAP) Documentation
+# OpenGAP Documentation
 
-A framework-agnostic, git-native standard for defining AI agents. `gapman` is the reference CLI (the GitAgentProtocol Manager).
+A framework-agnostic, git-native standard for defining AI agents. `opengap` is the reference CLI for the Git Agent Protocol.
 
 **Clone a repo, get an agent.**
 
-> The package was previously published as `@open-gitagent/gitagent`. Starting with v0.3.1 it is published as [`@open-gitagent/gapman`](https://www.npmjs.com/package/@open-gitagent/gapman). Both `gapman` and `gitagent` commands are installed as binaries — they point to the same CLI.
+> The package was originally published as `@open-gitagent/gitagent`, then `@open-gitagent/gapman`. Starting with v0.4.0 it is published as [`@open-gitagent/opengap`](https://www.npmjs.com/package/@open-gitagent/opengap). Both `opengap` and `gitagent` commands are installed as binaries — they point to the same CLI.
 
 ---
 
@@ -50,17 +50,17 @@ A framework-agnostic, git-native standard for defining AI agents. `gapman` is th
 ## Installation
 
 ```bash
-npm install -g @open-gitagent/gapman
+npm install -g @open-gitagent/opengap
 ```
 
 Verify:
 
 ```bash
-gapman --version   # 0.3.1
-gapman --help
+opengap --version   # 0.3.1
+opengap --help
 
 # gitagent alias also works
-gapman --version
+opengap --version
 ```
 
 ---
@@ -69,28 +69,28 @@ gapman --version
 
 ```bash
 # Create a new agent
-gapman init --template standard --dir ./my-agent
+opengap init --template standard --dir ./my-agent
 
 # Validate it
-gapman validate -d ./my-agent
+opengap validate -d ./my-agent
 
 # Run it locally with Claude Code
-gapman run -d ./my-agent
+opengap run -d ./my-agent
 
 # Run from a git repo
-gapman run -r https://github.com/user/my-agent -p "Hello"
+opengap run -r https://github.com/user/my-agent -p "Hello"
 
 # Run with a different adapter
-gapman run -d ./my-agent -a github -p "Summarize this project"
+opengap run -d ./my-agent -a github -p "Summarize this project"
 
 # Clone + auto-detect best adapter + run
-gapman run -r https://github.com/user/my-agent -a git -p "Hello"
+opengap run -r https://github.com/user/my-agent -a git -p "Hello"
 
 # Deploy to Lyzr Studio and chat
-gapman lyzr run -r https://github.com/user/my-agent -p "Hello"
+opengap lyzr run -r https://github.com/user/my-agent -p "Hello"
 
 # Export to another framework
-gapman export -f openai -d ./my-agent -o agent.py
+opengap export -f openai -d ./my-agent -o agent.py
 ```
 
 ---
@@ -336,7 +336,7 @@ metadata:
 Scaffold a new agent repository.
 
 ```bash
-gapman init [options]
+opengap init [options]
 ```
 
 | Option | Default | Description |
@@ -353,8 +353,8 @@ gapman init [options]
 | `full` | Everything in standard + `memory/`, `hooks/`, `examples/`, `agents/`, `compliance/`, `config/`, `.gitignore` |
 
 ```bash
-gapman init --template minimal
-gapman init --template full --dir ./my-agent
+opengap init --template minimal
+opengap init --template full --dir ./my-agent
 ```
 
 ---
@@ -364,7 +364,7 @@ gapman init --template full --dir ./my-agent
 Validate an agent against the specification and optionally check regulatory compliance.
 
 ```bash
-gapman validate [options]
+opengap validate [options]
 ```
 
 | Option | Default | Description |
@@ -392,9 +392,9 @@ gapman validate [options]
 - Vendor management metadata for dependencies
 
 ```bash
-gapman validate
-gapman validate --compliance
-gapman validate -d ./examples/full --compliance
+opengap validate
+opengap validate --compliance
+opengap validate -d ./examples/full --compliance
 ```
 
 ---
@@ -404,7 +404,7 @@ gapman validate -d ./examples/full --compliance
 Display a formatted summary of the agent configuration.
 
 ```bash
-gapman info [options]
+opengap info [options]
 ```
 
 | Option | Default | Description |
@@ -414,8 +414,8 @@ gapman info [options]
 Shows: name, version, description, author, license, model preferences, skills, tools, sub-agents, runtime config, compliance settings, tags, and a SOUL.md preview.
 
 ```bash
-gapman info
-gapman info -d ./examples/standard
+opengap info
+opengap info -d ./examples/standard
 ```
 
 ---
@@ -425,7 +425,7 @@ gapman info -d ./examples/standard
 Export an agent to another framework's format.
 
 ```bash
-gapman export [options]
+opengap export [options]
 ```
 
 | Option | Default | Description |
@@ -449,22 +449,22 @@ gapman export [options]
 
 ```bash
 # Print system prompt to terminal
-gapman export --format system-prompt
+opengap export --format system-prompt
 
 # Save Claude Code format to file
-gapman export --format claude-code --output CLAUDE.md
+opengap export --format claude-code --output CLAUDE.md
 
 # Generate OpenAI Python code
-gapman export --format openai --output agent.py
+opengap export --format openai --output agent.py
 
 # Preview Lyzr API payload
-gapman export --format lyzr -d ./examples/lyzr-agent
+opengap export --format lyzr -d ./examples/lyzr-agent
 
 # Preview GitHub Models payload
-gapman export --format github -d ./examples/standard
+opengap export --format github -d ./examples/standard
 
 # Export CrewAI config
-gapman export --format crewai -d ./examples/standard
+opengap export --format crewai -d ./examples/standard
 ```
 
 ---
@@ -474,7 +474,7 @@ gapman export --format crewai -d ./examples/standard
 Import from another agent framework into gitagent format.
 
 ```bash
-gapman import --from <format> <path> [options]
+opengap import --from <format> <path> [options]
 ```
 
 | Option | Default | Description |
@@ -492,9 +492,9 @@ gapman import --from <format> <path> [options]
 | `crewai` | CrewAI YAML config | `agent.yaml`, `SOUL.md`, sub-agents in `agents/` |
 
 ```bash
-gapman import --from claude ./my-claude-project
-gapman import --from cursor ./.cursorrules
-gapman import --from crewai ./crew.yaml --dir ./imported-agent
+opengap import --from claude ./my-claude-project
+opengap import --from cursor ./.cursorrules
+opengap import --from crewai ./crew.yaml --dir ./imported-agent
 ```
 
 ---
@@ -504,7 +504,7 @@ gapman import --from crewai ./crew.yaml --dir ./imported-agent
 Resolve and install git-based agent dependencies declared in `agent.yaml`.
 
 ```bash
-gapman install [options]
+opengap install [options]
 ```
 
 | Option | Default | Description |
@@ -518,8 +518,8 @@ For each entry in `dependencies`:
 - Validates that installed dependencies contain `agent.yaml`
 
 ```bash
-gapman install
-gapman install -d ./my-agent
+opengap install
+opengap install -d ./my-agent
 ```
 
 ---
@@ -529,7 +529,7 @@ gapman install -d ./my-agent
 Generate a comprehensive compliance audit report.
 
 ```bash
-gapman audit [options]
+opengap audit [options]
 ```
 
 | Option | Default | Description |
@@ -549,8 +549,8 @@ gapman audit [options]
 9. **Audit Hooks** — hooks.yaml and compliance-flagged hooks
 
 ```bash
-gapman audit
-gapman audit -d ./examples/full
+opengap audit
+opengap audit -d ./examples/full
 ```
 
 ---
@@ -562,7 +562,7 @@ Manage agent skills — search registries, install, list, and inspect.
 #### skills search
 
 ```bash
-gapman skills search <query> [options]
+opengap skills search <query> [options]
 ```
 
 | Option | Default | Description |
@@ -574,7 +574,7 @@ gapman skills search <query> [options]
 #### skills install
 
 ```bash
-gapman skills install <name> [options]
+opengap skills install <name> [options]
 ```
 
 | Option | Default | Description |
@@ -588,7 +588,7 @@ gapman skills install <name> [options]
 #### skills list
 
 ```bash
-gapman skills list [options]
+opengap skills list [options]
 ```
 
 | Option | Default | Description |
@@ -599,7 +599,7 @@ gapman skills list [options]
 #### skills info
 
 ```bash
-gapman skills info <name> [options]
+opengap skills info <name> [options]
 ```
 
 | Option | Default | Description |
@@ -607,10 +607,10 @@ gapman skills info <name> [options]
 | `-d, --dir <dir>` | `.` | Agent directory |
 
 ```bash
-gapman skills search "code review"
-gapman skills install code-review --global
-gapman skills list
-gapman skills info code-review
+opengap skills search "code review"
+opengap skills install code-review --global
+opengap skills list
+opengap skills info code-review
 ```
 
 ---
@@ -620,7 +620,7 @@ gapman skills info code-review
 Run an agent interactively with a specific adapter/framework.
 
 ```bash
-gapman run [options]
+opengap run [options]
 ```
 
 | Option | Default | Description |
@@ -654,31 +654,31 @@ Either `--repo` or `--dir` is required.
 
 ```bash
 # Run a local agent with Claude Code (interactive)
-gapman run -d ./my-agent
+opengap run -d ./my-agent
 
 # Run from a git repo
-gapman run -r https://github.com/user/agent
+opengap run -r https://github.com/user/agent
 
 # Run with GitHub Models
-gapman run -d ./my-agent -a github -p "Review my code"
+opengap run -d ./my-agent -a github -p "Review my code"
 
 # Run with Lyzr
-gapman run -r https://github.com/user/agent -a lyzr -p "Hello"
+opengap run -r https://github.com/user/agent -a lyzr -p "Hello"
 
 # Auto-detect adapter from repo contents
-gapman run -r https://github.com/user/agent -a git -p "Hello"
+opengap run -r https://github.com/user/agent -a git -p "Hello"
 
 # One-shot prompt mode
-gapman run -d ./my-agent -p "Review my authentication code"
+opengap run -d ./my-agent -p "Review my authentication code"
 
 # Run an agent definition against a separate target workspace
-gapman run -d ./agents/reviewer --workspace ~/code/my-app -a claude -p "Review this repository"
+opengap run -d ./agents/reviewer --workspace ~/code/my-app -a claude -p "Review this repository"
 
 # Run a specific branch, force refresh
-gapman run -r https://github.com/user/agent -b develop --refresh
+opengap run -r https://github.com/user/agent -b develop --refresh
 
 # Just output the system prompt (no runner)
-gapman run -d ./my-agent -a prompt
+opengap run -d ./my-agent -a prompt
 ```
 
 ---
@@ -688,7 +688,7 @@ gapman run -d ./my-agent -a prompt
 Manage Lyzr Studio agents — create, update, inspect, and run.
 
 ```bash
-gapman lyzr <subcommand> [options]
+opengap lyzr <subcommand> [options]
 ```
 
 #### lyzr create
@@ -696,7 +696,7 @@ gapman lyzr <subcommand> [options]
 Create a new agent on Lyzr Studio from the local gitagent definition.
 
 ```bash
-gapman lyzr create [options]
+opengap lyzr create [options]
 ```
 
 | Option | Default | Description |
@@ -707,7 +707,7 @@ gapman lyzr create [options]
 Saves the returned agent ID to `.lyzr_agent_id` for reuse.
 
 ```bash
-gapman lyzr create -d ./examples/lyzr-agent
+opengap lyzr create -d ./examples/lyzr-agent
 ```
 
 #### lyzr update
@@ -715,7 +715,7 @@ gapman lyzr create -d ./examples/lyzr-agent
 Push the current gitagent definition to an existing Lyzr agent.
 
 ```bash
-gapman lyzr update [options]
+opengap lyzr update [options]
 ```
 
 | Option | Default | Description |
@@ -725,8 +725,8 @@ gapman lyzr update [options]
 | `--api-key <key>` | — | Lyzr API key (or set `LYZR_API_KEY`) |
 
 ```bash
-gapman lyzr update -d ./examples/lyzr-agent
-gapman lyzr update --agent-id abc123
+opengap lyzr update -d ./examples/lyzr-agent
+opengap lyzr update --agent-id abc123
 ```
 
 #### lyzr info
@@ -734,7 +734,7 @@ gapman lyzr update --agent-id abc123
 Show the Lyzr agent ID linked to this gitagent directory.
 
 ```bash
-gapman lyzr info [options]
+opengap lyzr info [options]
 ```
 
 | Option | Default | Description |
@@ -742,7 +742,7 @@ gapman lyzr info [options]
 | `-d, --dir <dir>` | `.` | Agent directory |
 
 ```bash
-gapman lyzr info -d ./examples/lyzr-agent
+opengap lyzr info -d ./examples/lyzr-agent
 ```
 
 #### lyzr run
@@ -750,7 +750,7 @@ gapman lyzr info -d ./examples/lyzr-agent
 Clone a git agent repo, create it on Lyzr, and chat — all in one command.
 
 ```bash
-gapman lyzr run [options]
+opengap lyzr run [options]
 ```
 
 | Option | Default | Description |
@@ -767,13 +767,13 @@ If no `.lyzr_agent_id` exists, the agent is created on Lyzr Studio first. If no 
 
 ```bash
 # Full one-liner: clone + create + chat
-gapman lyzr run -r https://github.com/user/my-agent -p "Hello"
+opengap lyzr run -r https://github.com/user/my-agent -p "Hello"
 
 # From local directory
-gapman lyzr run -d ./examples/lyzr-agent -p "Summarize AI trends"
+opengap lyzr run -d ./examples/lyzr-agent -p "Summarize AI trends"
 
 # Just create (no prompt)
-gapman lyzr run -r https://github.com/user/my-agent
+opengap lyzr run -r https://github.com/user/my-agent
 ```
 
 **Lyzr API Endpoints:**
@@ -878,7 +878,7 @@ GitHub Models API payload (OpenAI-compatible chat completions). Returns JSON wit
 
 ## Adapters & Runners
 
-When you run `gapman run -a <adapter>`, the corresponding runner prepares the environment and launches the framework.
+When you run `opengap run -a <adapter>`, the corresponding runner prepares the environment and launches the framework.
 
 ### Claude Runner
 
@@ -1005,7 +1005,7 @@ Adapter: `github`
 
 ```bash
 export GITHUB_TOKEN="ghp_..."
-gapman run -d ./my-agent -a github -p "Review this code"
+opengap run -d ./my-agent -a github -p "Review this code"
 ```
 
 ---
@@ -1032,10 +1032,10 @@ The git runner clones a repository and auto-detects the best adapter from the ag
 
 ```bash
 # Auto-detect and run
-gapman run -a git -r https://github.com/user/my-agent -p "Hello"
+opengap run -a git -r https://github.com/user/my-agent -p "Hello"
 
 # Force a specific branch
-gapman run -a git -r https://github.com/user/my-agent -b develop --refresh -p "Hello"
+opengap run -a git -r https://github.com/user/my-agent -b develop --refresh -p "Hello"
 ```
 
 ---
@@ -1157,7 +1157,7 @@ compliance/
 
 ### Audit Report
 
-Run `gapman audit` to generate a section-by-section compliance checklist with pass/fail/warning indicators for every regulatory requirement.
+Run `opengap audit` to generate a section-by-section compliance checklist with pass/fail/warning indicators for every regulatory requirement.
 
 ---
 
@@ -1186,7 +1186,7 @@ dependencies:
       risk_assessment: low
 ```
 
-Run `gapman install` to resolve and clone all dependencies.
+Run `opengap install` to resolve and clone all dependencies.
 
 ### Sub-Agents
 
@@ -1347,8 +1347,8 @@ examples/lyzr-agent/
 ```
 
 ```bash
-gapman lyzr create -d ./examples/lyzr-agent
-gapman lyzr run -d ./examples/lyzr-agent -p "What are AI agents?"
+opengap lyzr create -d ./examples/lyzr-agent
+opengap lyzr run -d ./examples/lyzr-agent -p "What are AI agents?"
 ```
 
 ---
@@ -1378,16 +1378,16 @@ gitagent/
 ├── src/
 │   ├── index.ts                    # CLI entry point (Commander)
 │   ├── commands/
-│   │   ├── init.ts                 # gapman init
-│   │   ├── validate.ts             # gapman validate
-│   │   ├── info.ts                 # gapman info
-│   │   ├── export.ts               # gapman export
-│   │   ├── import.ts               # gapman import
-│   │   ├── install.ts              # gapman install
-│   │   ├── audit.ts                # gapman audit
-│   │   ├── skills.ts               # gapman skills
-│   │   ├── run.ts                  # gapman run
-│   │   └── lyzr.ts                 # gapman lyzr
+│   │   ├── init.ts                 # opengap init
+│   │   ├── validate.ts             # opengap validate
+│   │   ├── info.ts                 # opengap info
+│   │   ├── export.ts               # opengap export
+│   │   ├── import.ts               # opengap import
+│   │   ├── install.ts              # opengap install
+│   │   ├── audit.ts                # opengap audit
+│   │   ├── skills.ts               # opengap skills
+│   │   ├── run.ts                  # opengap run
+│   │   └── lyzr.ts                 # opengap lyzr
 │   ├── adapters/
 │   │   ├── index.ts                # Re-exports all adapters
 │   │   ├── system-prompt.ts        # Markdown system prompt

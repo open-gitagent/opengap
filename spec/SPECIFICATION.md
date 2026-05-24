@@ -459,7 +459,7 @@ Provides fallback instructions compatible with Cursor, Copilot, and other tools 
 
 ## 7. Skills — Agent Skills Open Standard
 
-gitagent fully adopts the **Agent Skills** open standard ([agentskills.io](https://agentskills.io)) for its `skills/` directory. Any valid Agent Skills skill works in gitagent with zero modification, and gapman skills work in Claude Code, Codex, VS Code, Cursor, Gemini CLI, and all other tools that support the standard.
+gitagent fully adopts the **Agent Skills** open standard ([agentskills.io](https://agentskills.io)) for its `skills/` directory. Any valid Agent Skills skill works in gitagent with zero modification, and opengap skills work in Claude Code, Codex, VS Code, Cursor, Gemini CLI, and all other tools that support the standard.
 
 ### SKILL.md Format (Agent Skills Standard)
 
@@ -560,10 +560,10 @@ Built-in providers:
 
 | Command | Description |
 |---------|-------------|
-| `gapman skills search <query>` | Search for skills in a registry |
-| `gapman skills install <name>` | Install a skill from a registry |
-| `gapman skills list` | List discovered skills |
-| `gapman skills info <name>` | Show detailed skill information |
+| `opengap skills search <query>` | Search for skills in a registry |
+| `opengap skills install <name>` | Install a skill from a registry |
+| `opengap skills list` | List discovered skills |
+| `opengap skills info <name>` | Show detailed skill information |
 
 Options: `--provider <name>`, `--global` (install to `~/.agents/skills/`), `--dir <dir>`
 
@@ -971,28 +971,28 @@ A valid gitagent repository must:
 
 | Command | Description |
 |---------|-------------|
-| `gapman init [--template]` | Scaffold new agent (`minimal`, `standard`, `full`) |
-| `gapman validate [--compliance]` | Validate against spec, optionally with regulatory checks |
-| `gapman info` | Display agent summary |
-| `gapman export --format <fmt>` | Export (`system-prompt`, `claude-code`, `openai`, `crewai`) |
-| `gapman import --from <fmt> <path>` | Import (`claude`, `cursor`, `crewai`) |
-| `gapman install` | Resolve and install git-based dependencies |
-| `gapman audit` | Generate compliance audit report |
-| `gapman skills search <query>` | Search for skills in a registry |
-| `gapman skills install <name>` | Install a skill from a registry |
-| `gapman skills list` | List discovered skills |
-| `gapman skills info <name>` | Show detailed skill information |
+| `opengap init [--template]` | Scaffold new agent (`minimal`, `standard`, `full`) |
+| `opengap validate [--compliance]` | Validate against spec, optionally with regulatory checks |
+| `opengap info` | Display agent summary |
+| `opengap export --format <fmt>` | Export (`system-prompt`, `claude-code`, `openai`, `crewai`) |
+| `opengap import --from <fmt> <path>` | Import (`claude`, `cursor`, `crewai`) |
+| `opengap install` | Resolve and install git-based dependencies |
+| `opengap audit` | Generate compliance audit report |
+| `opengap skills search <query>` | Search for skills in a registry |
+| `opengap skills install <name>` | Install a skill from a registry |
+| `opengap skills list` | List discovered skills |
+| `opengap skills info <name>` | Show detailed skill information |
 
 ### Planned (future versions)
 
 | Command | Description |
 |---------|-------------|
-| `gapman run [--env] [--model]` | Start agent interactively |
+| `opengap run [--env] [--model]` | Start agent interactively |
 | `gitagent serve --protocol <proto>` | Run as A2A/MCP server |
-| `gapman test` | Run against example scenarios |
+| `opengap test` | Run against example scenarios |
 | `gitagent publish` | Publish to registry |
 | `gitagent card` | Generate A2A Agent Card |
-| `gapman diff <ref1> <ref2>` | Semantic diff between versions |
+| `opengap diff <ref1> <ref2>` | Semantic diff between versions |
 
 ## 19a. JSON Schemas
 

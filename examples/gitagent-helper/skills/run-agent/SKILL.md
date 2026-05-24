@@ -25,13 +25,13 @@ If you see authentication errors:
 
 ```bash
 # Run local agent with Claude (default)
-gapman run -d ./my-agent
+opengap run -d ./my-agent
 
 # Run from git repo
-gapman run -r https://github.com/user/agent
+opengap run -r https://github.com/user/agent
 
 # Run with a prompt (one-shot mode)
-gapman run -d ./my-agent -p "Review my code"
+opengap run -d ./my-agent -p "Review my code"
 ```
 
 ## Adapters
@@ -52,24 +52,24 @@ gapman run -d ./my-agent -p "Review my code"
 
 ```bash
 # Claude (interactive)
-gapman run -d ./my-agent
+opengap run -d ./my-agent
 
 # GitHub Models (one-shot, streaming)
 export GITHUB_TOKEN="ghp_..."
-gapman run -d ./my-agent -a github -p "Explain this codebase"
+opengap run -d ./my-agent -a github -p "Explain this codebase"
 
 # Lyzr (creates agent on Lyzr Studio + chats)
 export LYZR_API_KEY="..."
-gapman run -r https://github.com/user/agent -a lyzr -p "Hello"
+opengap run -r https://github.com/user/agent -a lyzr -p "Hello"
 
 # Lyzr one-liner (clone + create + chat)
-gapman lyzr run -r https://github.com/user/agent -p "Hello"
+opengap lyzr run -r https://github.com/user/agent -p "Hello"
 
 # Auto-detect adapter from repo
-gapman run -r https://github.com/user/agent -a git -p "Hello"
+opengap run -r https://github.com/user/agent -a git -p "Hello"
 
 # Just print the system prompt
-gapman run -d ./my-agent -a prompt
+opengap run -d ./my-agent -a prompt
 ```
 
 ## Git Caching
@@ -77,13 +77,13 @@ gapman run -d ./my-agent -a prompt
 Repos cloned via `-r` are cached at `~/.gitagent/cache/`:
 ```bash
 # Use cache (default)
-gapman run -r https://github.com/user/agent
+opengap run -r https://github.com/user/agent
 
 # Force refresh
-gapman run -r https://github.com/user/agent --refresh
+opengap run -r https://github.com/user/agent --refresh
 
 # No cache (temp dir, deleted after)
-gapman run -r https://github.com/user/agent --no-cache
+opengap run -r https://github.com/user/agent --no-cache
 ```
 
 ## Auto-Detection (`-a git`)

@@ -55,16 +55,16 @@ Recompiles on file changes. You still need to re-run the command manually.
 src/
 ├── index.ts              # CLI entry point (Commander.js)
 ├── commands/             # One file per CLI command
-│   ├── run.ts            # gapman run
-│   ├── init.ts           # gapman init
-│   ├── validate.ts       # gapman validate
-│   ├── export.ts         # gapman export
-│   ├── import.ts         # gapman import
-│   ├── audit.ts          # gapman audit
-│   ├── skills.ts         # gapman skills
-│   ├── install.ts        # gapman install
-│   ├── info.ts           # gapman info
-│   └── lyzr.ts           # gapman lyzr
+│   ├── run.ts            # opengap run
+│   ├── init.ts           # opengap init
+│   ├── validate.ts       # opengap validate
+│   ├── export.ts         # opengap export
+│   ├── import.ts         # opengap import
+│   ├── audit.ts          # opengap audit
+│   ├── skills.ts         # opengap skills
+│   ├── install.ts        # opengap install
+│   ├── info.ts           # opengap info
+│   └── lyzr.ts           # opengap lyzr
 ├── runners/              # Runtime adapters (execute agents)
 │   ├── claude.ts         # Claude Code runner
 │   ├── openai.ts         # OpenAI Agents SDK runner

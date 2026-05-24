@@ -4,22 +4,22 @@
 
 | Command | Description |
 |---------|-------------|
-| `gapman init` | Scaffold a new agent repo (`-t minimal\|standard\|full`) |
-| `gapman validate` | Validate agent.yaml and structure (`-c` for compliance) |
-| `gapman info` | Show agent summary |
-| `gapman export` | Export to other formats (`-f system-prompt\|claude-code\|openai\|crewai\|openclaw\|nanobot\|lyzr\|github`) |
-| `gapman import` | Import from other frameworks (`--from claude\|cursor\|crewai`) |
-| `gapman install` | Resolve git dependencies |
-| `gapman audit` | Generate compliance audit report |
-| `gapman skills search` | Search skill registries |
-| `gapman skills install` | Install a skill |
-| `gapman skills list` | List discovered skills |
-| `gapman skills info` | Inspect a skill |
-| `gapman run` | Run agent with an adapter (`-a claude\|openai\|crewai\|openclaw\|nanobot\|lyzr\|github\|git\|prompt`) |
-| `gapman lyzr create` | Create agent on Lyzr Studio |
-| `gapman lyzr update` | Push changes to Lyzr |
-| `gapman lyzr info` | Show linked Lyzr agent ID |
-| `gapman lyzr run` | Clone + create + chat on Lyzr in one command |
+| `opengap init` | Scaffold a new agent repo (`-t minimal\|standard\|full`) |
+| `opengap validate` | Validate agent.yaml and structure (`-c` for compliance) |
+| `opengap info` | Show agent summary |
+| `opengap export` | Export to other formats (`-f system-prompt\|claude-code\|openai\|crewai\|openclaw\|nanobot\|lyzr\|github`) |
+| `opengap import` | Import from other frameworks (`--from claude\|cursor\|crewai`) |
+| `opengap install` | Resolve git dependencies |
+| `opengap audit` | Generate compliance audit report |
+| `opengap skills search` | Search skill registries |
+| `opengap skills install` | Install a skill |
+| `opengap skills list` | List discovered skills |
+| `opengap skills info` | Inspect a skill |
+| `opengap run` | Run agent with an adapter (`-a claude\|openai\|crewai\|openclaw\|nanobot\|lyzr\|github\|git\|prompt`) |
+| `opengap lyzr create` | Create agent on Lyzr Studio |
+| `opengap lyzr update` | Push changes to Lyzr |
+| `opengap lyzr info` | Show linked Lyzr agent ID |
+| `opengap lyzr run` | Clone + create + chat on Lyzr in one command |
 
 ## Common Flags
 
