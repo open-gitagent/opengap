@@ -28,9 +28,6 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish opengap (unscoped alias)
-        run: |
-          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.name='opengap';fs.writeFileSync('package.json',JSON.stringify(p,null,2));"
-          npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # Note: the unscoped root name "opengap" cannot be published — npm rejects
+      # it as too similar to the existing "openai" package (typosquatting guard,
+      # E403). The package is published under the scoped name only.
