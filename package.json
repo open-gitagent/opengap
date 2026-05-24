@@ -42,11 +42,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/open-gitagent/gitagent.git"
+    "url": "git+https://github.com/open-gitagent/opengap.git"
   },
   "homepage": "https://gitagent.sh",
   "bugs": {
-    "url": "https://github.com/open-gitagent/gitagent/issues"
+    "url": "https://github.com/open-gitagent/opengap/issues"
   },
   "engines": {
     "node": ">=18"
