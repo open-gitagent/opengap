@@ -3,7 +3,7 @@
 
 **Shreyas Kapale**
 OpenGAP Working Group
-[shreyas@lyzr.ai](mailto:shreyas@lyzr.ai) · [gitagent.sh](https://gitagent.sh) · [github.com/open-gitagent/gitagent](https://github.com/open-gitagent/gitagent)
+[shreyas@lyzr.ai](mailto:shreyas@lyzr.ai) · [gitagent.sh](https://gitagent.sh) · [github.com/open-gitagent/opengap](https://github.com/open-gitagent/opengap)
 
 *Preprint. April 2026.*
 
@@ -15,7 +15,9 @@ AI agents are being deployed into regulated, high-stakes environments faster tha
 
 Under OpenGAP, an agent is fully described by files in a directory: identity (`SOUL.md`), hard constraints (`RULES.md`), segregation-of-duties (`DUTIES.md`), skills, tools, knowledge, memory, hooks, sub-agents, and regulatory-compliance artifacts. A single canonical definition deterministically exports to **15 execution environments** (Claude Code, OpenAI Agents SDK, CrewAI, Cursor, Gemini CLI, Codex, OpenCode, Kiro, Lyzr, OpenClaw, Nanobot, GitHub Copilot, GitHub Models, GitClaw, system-prompt) with a documented **fidelity profile** per target. **Fourteen lifecycle patterns** — which we show decompose into four meta-patterns: *structural guarantees*, *lifecycle operations*, *collaboration primitives*, and *runtime hooks* — emerge naturally from the git substrate. Compliance is a first-class spec element, mapped onto FINRA 3110/4511/2210, SEC Reg BI/Reg S-P/17a-4, Federal Reserve SR 11-7, and CFPB Circular 2022-03, and enforced through `pre_tool_use` hooks with `fail_open: false` semantics. We prove a simple **structural SOD theorem**: any segregation-of-duties conflict declared in `DUTIES.md` is unbypassable by the agent itself, provided branch-protection rules are active and the agent has no force-push rights.
 
-OpenGAP is MIT-licensed. The reference implementation has **2,700+ GitHub stars**, 21 adapters, 11 runtime runners, and ships as `@open-gitagent/opengap` on npm. This paper consolidates the specification, the adapter model, the patterns, and the compliance framing into a single citable artifact, and sets an agenda for conformance testing, formal SOD verification, and an event schema for regulated agent-to-agent interaction.
+Spec v0.4 adds three concrete extensions to this surface: portable `mcp_servers` declarations that export to each runtime's native MCP configuration, a `financial_governance` block with spending caps and approval thresholds for payment-capable agents, and an accepted RFC for an optional Ed25519 cryptographic-identity layer.
+
+OpenGAP is MIT-licensed. The reference implementation has **2,700+ GitHub stars**, 15 adapters, 11 runtime runners, and ships provenance-signed as `@open-gitagent/opengap` (v0.4.0) on npm. This paper consolidates the specification, the adapter model, the patterns, and the compliance framing into a single citable artifact, and sets an agenda for conformance testing, formal SOD verification, and an event schema for regulated agent-to-agent interaction.
 
 **Keywords:** AI agents · protocols · version control · governance · segregation of duties · FINRA · SEC · SR 11-7 · model risk management · interoperability · open standards.
 
@@ -234,6 +236,8 @@ Three files carry the agent's normative content. They are read in this order by 
 **Skills** ($S$) are reusable capability modules. Each skill is a directory with `SKILL.md` (Markdown + YAML frontmatter), optional `scripts/`, `references/`, `assets/`, and `examples/`. Skills are installable from a shared registry via `opengap skills install`; one skill can be shared across many agents.
 
 **Tools** ($T$) are MCP-compatible schemas annotated with cost class (`none|low|medium|high`) and side-effect class. Implementations may be local (`tools/name.py`) or remote (URL).
+
+**MCP servers** (`mcp_servers` in `agent.yaml`) declare external Model Context Protocol servers once and export them to each runtime's native config. Each entry is stdio-based (`command` + `args` + `env`) or HTTP-based (`url` + `headers`), with `${VAR}` interpolation for secrets. One declaration renders to `.mcp.json` (Claude Code), the `mcpServers` block (Codex), `.cursor/mcp.json` (Cursor), or a markdown section (crewai, copilot) — extending "define once, run anywhere" from behavior to infrastructure integrations.
 
 **Knowledge** ($K$) is read-only reference material: Markdown, CSV, PDF, or any readable format, indexed by `knowledge/index.yaml`. Embeddings and retrieval indices are derived artifacts materialized in `.gitagent/cache/`.
 
@@ -471,7 +475,27 @@ pre_tool_use:
 
 The registered pre-tool hook fires before any matching tool call, receives the tool name and arguments on `stdin`, and exits `0` to allow or non-zero to block. `fail_open: false` upgrades the hook from advisory to enforcement: hook error, timeout, and non-zero exit all block the call.
 
-Concretely, a financial agent's `check-spending.sh` reads `compliance.financial_governance.spending.max_per_transaction_cents`, parses the pending payment from tool input, and blocks the call if the cap is exceeded. The hook is part of the agent repository, under version control, reviewed in the same PR as the policy it enforces. This locality — *policy and enforcement in one diff* — is the property that runtime-only policy engines cannot provide.
+As of spec v0.4 the `compliance.financial_governance` block is a shipped, schema-validated feature for payment-capable agents — spending limits in absolute cents, an approval threshold, allowed/blocked categories, and a named `firewall` identifier (never an endpoint URL, keeping the spec vendor-neutral):
+
+```yaml
+compliance:
+  risk_tier: high
+  financial_governance:
+    enabled: true
+    firewall: valkurai          # named identifier, not an endpoint
+    spending:
+      max_per_transaction_cents: 5000     # $50.00 hard cap
+      max_monthly_cents: 100000           # $1,000.00 cumulative
+      currency: AUD                       # ISO 4217
+      allowed_categories: [software, compute, api_services]
+      blocked_categories: [gambling, crypto, unknown]
+    approval:
+      require_above_cents: 2000           # human approval above $20.00
+      timeout_minutes: 60
+      auto_deny_on_timeout: true
+```
+
+The block is declarative; enforcement is a `pre_tool_use` hook (`check-spending.sh`) that reads `financial_governance.spending.max_per_transaction_cents`, parses the pending payment from tool input, and blocks the call if the cap is exceeded. `opengap validate` warns when a `risk_tier: high` agent declares financial tools but no `financial_governance` block, and rejects a `firewall` value that looks like a URL. The hook lives in the agent repository under version control, reviewed in the same PR as the policy it enforces. This locality — *policy and enforcement in one diff* — is the property that runtime-only policy engines cannot provide. The cross-runtime payment **event schema** is deliberately deferred (§13) until two or more enforcement implementations exist.
 
 ### 7.4 Audit trail is `git log`
 
@@ -500,6 +524,10 @@ Honesty about limitations is more valuable than an enumeration of features. Open
 3. **Prompt injection through knowledge.** Documents in `knowledge/` may carry payloads that override rules. Defenses (content filters, provenance checks) are out of scope for the spec.
 4. **Model capability drift.** `human_in_the_loop: always` does not verify that the human reviewed the output; it only requires that the runtime offer a review gate.
 5. **Extrinsic compliance obligations.** GAP maps structural controls onto git workflows. Jurisdiction-specific duties (MiCA, AI Act specifics, HIPAA, GDPR Article 22) require local legal review.
+
+### 7.6 Cryptographic identity (RFC, optional)
+
+The insider item above motivates an optional cryptographic-identity layer, accepted as an RFC (`spec/rfcs/identity.md`) in spec v0.4 and slated as an optional `identity` block on `agent.yaml`. It separates two concerns the literature conflates: **provenance** (this manifest at this commit was authored by the holder of key *X* — already solvable with signed tags or sigstore, no spec change needed) and **runtime delegation** (the running agent producing this output acts on behalf of parent agent *Y*, with scope *Z*, signed by *Y*'s key, not yet revoked — the genuine gap). The RFC binds a manifest to an Ed25519 public key, with an optional `passport_uri` pointing at a richer identity document for scoped delegation and revocation, and reserves `signatures.<scope>` for manifest signatures. Verification semantics live in the spec; enforcement (refuse-to-load, sandbox, log-and-continue) is left to the runtime. Fully optional — manifests without it are unchanged. This closes the inter-organization delegation case and the regulated-runtime check: *prove the agent that produced this output was the agent in the manifest, with authority not yet revoked.*
 
 ---
 
@@ -545,7 +573,7 @@ Let $w \in W$ be a trace that contains tool calls attributable to both $r_i$ and
 
 ## 9. Reference Implementation
 
-The reference implementation is **`opengap`** (GAP manager), a TypeScript CLI published to npm as both `@open-gitagent/opengap` (scoped, provenance-signed) and `opengap` (unscoped alias). The repository is [github.com/open-gitagent/gitagent](https://github.com/open-gitagent/gitagent); the license is MIT.
+The reference implementation is **`opengap`**, a TypeScript CLI published to npm as `@open-gitagent/opengap` (scoped, provenance-signed via GitHub Actions OIDC) at v0.4.0. The `gitagent` command is installed as a backward-compatibility alias for the same binary. The repository is [github.com/open-gitagent/opengap](https://github.com/open-gitagent/opengap); the license is MIT. (The project was originally named `gitagent`, briefly `gapman`; the unscoped root name `opengap` is unavailable on npm under its package-similarity policy, so the scoped name is canonical.)
 
 ### 9.1 Verb surface
 
@@ -628,15 +656,16 @@ Evaluation has three axes: adoption, fidelity, and qualitative comparison.
 
 ### 11.1 Adoption
 
-As of April 2026, the reference repository has:
+As of May 2026, the reference repository `open-gitagent/opengap` has:
 
 - **2,700+ GitHub stars**
-- **21 adapters**, five of which (Cursor, Kiro, Codex, Gemini, OpenCode) were contributed by pull request from *external authors* unaffiliated with the maintainer
-- **15+ closed issues** and active RFC discussions (financial governance, conformance testing, registry trust model)
-- **Provenance-signed** releases on npm under both `@open-gitagent/opengap` and `opengap`
+- **15 export adapters + 11 runtime runners**; five adapters (Cursor, Kiro, Codex, Gemini, OpenCode) were contributed by pull request from *external authors* unaffiliated with the maintainer
+- **Three spec features shipped from community RFCs/PRs** in v0.4: portable `mcp_servers`, the `financial_governance` block, and the accepted cryptographic-identity RFC
+- **Provenance-signed** releases on npm as `@open-gitagent/opengap` v0.4.0 (the unscoped root `opengap` is blocked by npm's package-similarity policy, so the scoped name is canonical)
+- **CI on Node 18 / 20 / 22** building and validating the bundled example agents on every push
 - **Cross-community pollination**: GAP agents appear in registries that predate it (the Lyzr registry) and in new registries that postdate it (GitClaw, the OpenClaw ecosystem)
 
-External adapter contributions are the strongest signal that the protocol is perceived as a **neutral substrate**, not a vendor product. No single contributor has standing to force a breaking change in favor of their framework.
+External adapter and spec contributions are the strongest signal that the protocol is perceived as a **neutral substrate**, not a vendor product. No single contributor has standing to force a breaking change in favor of their framework.
 
 ### 11.2 Export fidelity (empirical)
 
@@ -697,12 +726,13 @@ Git is imperfect. Its UX is unloved; its model of content-addressed history is s
 
 1. **Conformance test suite.** A portable, language-agnostic test suite that an adapter implementer can run to certify a fidelity claim. The single highest-leverage next artifact.
 2. **Formal SOD verification.** Express `DUTIES.md` conflict rules as logical assertions and verify that an agent's tool-call trace satisfies them. TLA⁺ or Alloy is a natural fit; a more ambitious direction is synthesis — generate an agent's executable policy from its declarative `DUTIES.md`.
-3. **Financial-governance event schema.** Once two or more external enforcement implementations exist, standardize `payment_required` / `payment_approval` / `payment_receipt` events as an RFC addendum. Doing this *prematurely* risks standardizing imaginary interop; waiting for real implementations grounds it in observed need [16].
-4. **A2A server adapter.** GAP currently declares A2A compatibility in `agent.yaml` but does not ship a reference A2A server. Closing this loop enables GAP agents to serve as first-class A2A peers.
-5. **Empirical user study.** A controlled comparison of team velocity, change-review latency, and compliance-prep time when defining, porting, and auditing agents under GAP versus framework-native equivalents. This is the evaluation a full systems-venue submission would require.
-6. **Cross-jurisdictional regulatory mappings.** Extend the mapping table (§7.2) to EU AI Act, UK FCA guidance, MAS Singapore, ISO 42001, and sectoral controls (HIPAA, HITRUST). The structural claims are jurisdiction-neutral, but the mapping is not.
-7. **Knowledge provenance.** A spec extension for signed, cryptographically-verifiable provenance on documents in `knowledge/`, addressing the prompt-injection threat in §7.5.
-8. **Agent-to-agent supply chain.** Transitively pinned `extends:` chains with signed provenance — `this agent extends A@v1.2.3 which extends B@v4.0.1, verified signatures, verified fidelity claims`.
+3. **Financial-governance Phase 2/3.** The declarative `financial_governance` block shipped in v0.4 (§6.3); Phase 2 is a reference `pre_tool_use` enforcement hook, and Phase 3 is a `payment_required` / `payment_approval` / `payment_receipt` event schema for cross-runtime interop. Phase 3 waits until two or more enforcement implementations exist; standardizing earlier risks codifying imaginary interop [16].
+4. **Identity-layer implementation.** The cryptographic-identity RFC (§7.6) is accepted; next is the `identity` block in `agent-yaml.schema.json`, a reference verifier, and a delegation-chain example.
+6. **A2A server adapter.** GAP currently declares A2A compatibility in `agent.yaml` but does not ship a reference A2A server. Closing this loop enables GAP agents to serve as first-class A2A peers.
+7. **Empirical user study.** A controlled comparison of team velocity, change-review latency, and compliance-prep time when defining, porting, and auditing agents under GAP versus framework-native equivalents. This is the evaluation a full systems-venue submission would require.
+8. **Cross-jurisdictional regulatory mappings.** Extend the mapping table (§7.2) to EU AI Act, UK FCA guidance, MAS Singapore, ISO 42001, and sectoral controls (HIPAA, HITRUST). The structural claims are jurisdiction-neutral, but the mapping is not.
+9. **Knowledge provenance.** A spec extension for signed, cryptographically-verifiable provenance on documents in `knowledge/`, addressing the prompt-injection threat in §7.5.
+10. **Agent-to-agent supply chain.** Transitively pinned `extends:` chains with signed provenance — `this agent extends A@v1.2.3 which extends B@v4.0.1, verified signatures, verified fidelity claims`.
 
 ---
 
@@ -739,8 +769,8 @@ The OpenGAP working group thanks contributors to the reference implementation an
 13. **CFPB.** *Circular 2022-03: Adverse Action Notification Requirements in Connection with Credit Decisions Based on Complex Algorithms.* 2022. <https://www.consumerfinance.gov/compliance/circulars/circular-2022-03>
 14. **A. Karpathy.** *LLM Wiki — a note on a pattern for LLM-managed knowledge bases.* GitHub Gist, 2025. <https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f>
 15. **P. Priyam.** *GitClose: A git-native reference implementation of the monthly financial close using OpenGAP.* 2026. <https://github.com/Priyanshu-Priyam/gitclose>
-16. **OpenGAP Working Group.** *RFC #38 — `compliance.financial_governance` block.* 2026. <https://github.com/open-gitagent/gitagent/issues/38>
-17. **OpenGAP Working Group.** *OpenGAP Specification v0.1.0.* 2026. <https://github.com/open-gitagent/gitagent/blob/main/spec/SPECIFICATION.md>
+16. **OpenGAP Working Group.** *RFC #38 — `compliance.financial_governance` block.* 2026. <https://github.com/open-gitagent/opengap/issues/38>
+17. **OpenGAP Working Group.** *OpenGAP Specification v0.1.0.* 2026. <https://github.com/open-gitagent/opengap/blob/main/spec/SPECIFICATION.md>
 18. **OpenGAP Working Group.** *opengap on npm.* 2026. <https://www.npmjs.com/package/@open-gitagent/opengap>
 19. **L. Lamport.** *Specifying Systems: The TLA+ Language and Tools for Hardware and Software Engineers.* Addison-Wesley, 2002.
 20. **D. Jackson.** *Software Abstractions: Logic, Language, and Analysis (Alloy).* MIT Press, 2012.

@@ -54,7 +54,7 @@
 \title{\textbf{\Huge OpenGAP} \\[4pt] \large\textbf{GitAgentProtocol} \\[4pt] \normalsize\textit{A Git-Native Protocol for the AI Agent Lifecycle}}
 
 \author[1]{Shreyas Kapale}
-\affil[1]{OpenGAP Working Group \\ \texttt{shreyas@lyzr.ai} \\ \href{https://gitagent.sh}{gitagent.sh} \\ \href{https://github.com/open-gitagent/gitagent}{github.com/open-gitagent/gitagent}}
+\affil[1]{OpenGAP Working Group \\ \texttt{shreyas@lyzr.ai} \\ \href{https://gitagent.sh}{gitagent.sh} \\ \href{https://github.com/open-gitagent/opengap}{github.com/open-gitagent/opengap}}
 
 \date{\today}
 
@@ -74,7 +74,7 @@ identity (\texttt{SOUL.md}), constraints (\texttt{RULES.md}), segregation-of-dut
 \texttt{knowledge/}, \texttt{memory/}, \texttt{hooks/}), and regulatory-compliance
 artifacts (\texttt{compliance/})\,---\,all as files under version control.
 
-From this single source of truth, the reference CLI (\texttt{gapman}) deterministically
+From this single source of truth, the reference CLI (\texttt{opengap}) deterministically
 exports the same agent into fifteen different execution environments, including Claude
 Code, OpenAI Agents SDK, CrewAI, Cursor, Gemini CLI, Codex, OpenCode, Kiro, Lyzr,
 OpenClaw, Nanobot, GitHub Copilot, GitHub Models, GitClaw, and a plain system-prompt
@@ -86,11 +86,15 @@ and a compliance model that maps directly to FINRA~3110/4511/2210,
 SEC~Reg\,BI/Reg\,S-P/17a-4, Federal Reserve~SR\,11-7, and CFPB~Circular~2022-03.
 Enforcement is achieved through \texttt{pre\_tool\_use} hooks with \texttt{fail\_open:
 false} semantics, making policy a first-class, testable artifact rather than a runtime
-wrapper.
+wrapper. Spec v0.4 adds three concrete extensions to this surface: portable
+\texttt{mcp\_servers} declarations that export to each runtime's native MCP
+configuration, a \texttt{financial\_governance} block with spending caps and approval
+thresholds for payment-capable agents, and an accepted RFC for an optional
+Ed25519 cryptographic-identity layer.
 
 OpenGAP is released under the MIT license. The reference implementation has 2{,}700+
-GitHub stars, 21 adapters, 11 runtime runners, and ships as
-\texttt{@open-gitagent/gapman} on npm. This paper consolidates the specification, the
+GitHub stars, 15 adapters, 11 runtime runners, and ships provenance-signed as
+\texttt{@open-gitagent/opengap} (v0.4.0) on npm. This paper consolidates the specification, the
 architectural patterns, the portability model, and the compliance framing into a single
 citable artifact, and sets out an agenda for conformance testing, formal
 segregation-of-duties verification, and event-schema standardization for regulated
@@ -138,7 +142,7 @@ so. The contributions of this paper are:
   \item The \textbf{adapter model} (\S\ref{sec:portability}): a systematic way to
   translate the canonical definition into fifteen different execution environments with
   a measurable fidelity profile per target, validated by the reference implementation
-  \texttt{gapman}.
+  \texttt{opengap}.
   \item A catalogue of \textbf{fourteen architectural patterns}
   (\S\ref{sec:patterns}) that emerge when agents are defined git-natively, including
   human-in-the-loop via branch~+~PR, agent versioning via git tags, segregation of
@@ -202,7 +206,7 @@ rather than a manifest; and (iii)~version history is line-level rather than
 semantic\,---\,\texttt{git log} shows diffs but not ``v2.1.0 changed the supervisory
 policy.'' OpenGAP sits above frameworks: the canonical definition is the repository,
 and the framework-native implementation is a derived artifact produced by
-\texttt{gapman export}.
+\texttt{opengap export}.
 
 \paragraph{Raw YAML/JSON configuration.}
 Many teams reach for a hand-rolled \texttt{config.yaml}. This offers flexibility but no
@@ -309,9 +313,9 @@ Three files carry the agent's normative content.
   segregation of duties for regulated deployments.
 \end{itemize}
 
-\subsection{Capabilities: skills, tools, knowledge, memory, hooks}
+\subsection{Capabilities: skills, tools, MCP servers, knowledge, memory, hooks}
 
-A GAP agent's capabilities are factored into five concerns.
+A GAP agent's capabilities are factored into six concerns.
 
 \textbf{Skills} (\texttt{skills/<name>/SKILL.md}) are reusable capability modules:
 each is a Markdown file with YAML frontmatter describing inputs, outputs, and
@@ -323,6 +327,16 @@ multiple agents.
 an external function the agent may invoke, annotated with cost
 (\texttt{none|low|medium|high}) and side-effect class. Implementations may live in
 \texttt{tools/<name>.\{py,sh,js\}} or at an external endpoint.
+
+\textbf{MCP servers} (\texttt{mcp\_servers} in \texttt{agent.yaml}) declare external
+Model Context Protocol servers once and export them to each runtime's native
+configuration. Each entry is either stdio-based (\texttt{command} + \texttt{args} +
+\texttt{env}) or HTTP-based (\texttt{url} + \texttt{headers}), with \texttt{\$\{VAR\}}
+interpolation for secrets. A single declaration renders to \texttt{.mcp.json} for
+Claude Code, to the \texttt{mcpServers} block for Codex, to \texttt{.cursor/mcp.json}
+for Cursor, and to a human-readable section for markdown-shaped targets. This extends
+the ``define once, run anywhere'' property from the agent's own behavior to its
+infrastructure integrations.
 
 \textbf{Knowledge} (\texttt{knowledge/}) is reference material the agent may consult:
 Markdown, CSV, PDF, or any readable format, plus an \texttt{index.yaml} that hints
@@ -352,7 +366,7 @@ to them via a structured handoff that carries enforced duty scope.
 \subsection{Formal manifest}
 
 Appendix~\ref{app:schema} gives an excerpt of \texttt{agent-yaml.schema.json}, the
-JSON Schema that \texttt{gapman validate} enforces on every \texttt{agent.yaml}. The
+JSON Schema that \texttt{opengap validate} enforces on every \texttt{agent.yaml}. The
 schema currently has ten files covering the agent manifest, hooks, hook I/O, tools,
 skills, knowledge, memory, skillflows, configuration, and the marketplace descriptor.
 
@@ -362,12 +376,12 @@ skills, knowledge, memory, skillflows, configuration, and the marketplace descri
 
 \subsection{Export-time versus runtime execution}
 
-A GAP agent can be consumed in two ways. In \emph{export} mode, \texttt{gapman export
+A GAP agent can be consumed in two ways. In \emph{export} mode, \texttt{opengap export
 --format <target>} deterministically renders the canonical definition into a directory
 or file in the target framework's native format (for example, \texttt{.cursor/rules/}
 files for Cursor, \texttt{CLAUDE.md}~+~\texttt{.claude/} for Claude Code,
 \texttt{AGENTS.md}~+~\texttt{opencode.json} for OpenCode). In \emph{runtime} mode,
-\texttt{gapman run --adapter <target>} performs the equivalent export into a temporary
+\texttt{opengap run --adapter <target>} performs the equivalent export into a temporary
 workspace and launches the target runtime over it, one-shot or interactively.
 
 This separation matters. Export produces a reviewable artifact; runtime produces a
@@ -416,7 +430,7 @@ notion of sub-agents; some cannot carry hooks; some accept only a single system-
 blob. We define the \emph{fidelity profile} of an adapter as the set of GAP
 elements it faithfully represents in its target format. Table~\ref{tab:fidelity}
 summarizes the profile at a coarse grain; the full matrix (Appendix~\ref{app:fidelity})
-is regenerated by running \texttt{gapman export} against the reference agents
+is regenerated by running \texttt{opengap export} against the reference agents
 \texttt{examples/standard/} and \texttt{examples/full/} and mechanically diffing the
 output for the presence of each element.
 
@@ -481,7 +495,7 @@ platform, not by the agent's internal logic\,---\,a structural guarantee rather 
 policy assertion.
 
 \paragraph{P4: CI/CD for Agents.}
-\texttt{gapman validate --compliance} runs in continuous integration on every push.
+\texttt{opengap validate --compliance} runs in continuous integration on every push.
 A failing agent manifest blocks the merge. Agent quality is treated as code quality.
 
 \paragraph{P5: Branch-Based Deployment.}
@@ -625,12 +639,42 @@ hook configured with \texttt{fail\_open: false} blocks the tool call on error, t
 or non-zero exit. This is the mechanism by which spending caps, PII redaction, and
 segregation-of-duties conflicts are structurally enforced.
 
-Concretely, a financial agent might register a \texttt{pre\_tool\_use} hook that reads
-\texttt{compliance.financial\_governance.spending.max\_per\_transaction\_cents}, parses
-the pending payment amount from tool input, and blocks the call if the cap is
-exceeded. The hook is part of the agent repository, under version control, and
-reviewable in the same PR as the policy it enforces\,---\,a property that runtime-only
-policy engines do not provide.
+\subsection{Financial governance}\label{sec:fingov}
+
+As of spec v0.4, the \texttt{compliance.financial\_governance} block is a shipped,
+schema-validated feature for payment-capable agents. It declares spending limits in
+absolute minor units (cents), an approval threshold, allowed and blocked categories,
+and a named \emph{firewall} identifier\,---\,never an endpoint URL, keeping the spec
+vendor-neutral:
+
+\begin{lstlisting}[language=yamlex]
+compliance:
+  risk_tier: high
+  financial_governance:
+    enabled: true
+    firewall: valkurai          # named identifier, not an endpoint
+    spending:
+      max_per_transaction_cents: 5000     # $50.00 hard cap
+      max_monthly_cents: 100000           # $1,000.00 cumulative
+      currency: AUD                       # ISO 4217
+      allowed_categories: [software, compute, api_services]
+      blocked_categories: [gambling, crypto, unknown]
+    approval:
+      require_above_cents: 2000           # human approval above $20.00
+      timeout_minutes: 60
+      auto_deny_on_timeout: true
+\end{lstlisting}
+
+The block is declarative; enforcement is a \texttt{pre\_tool\_use} hook that reads
+\texttt{financial\_governance.spending.max\_per\_transaction\_cents}, parses the pending
+payment from tool input, and blocks the call if the cap is exceeded. \texttt{opengap
+validate} warns when a \texttt{risk\_tier: high} agent declares financial tools but no
+\texttt{financial\_governance} block, and rejects a \texttt{firewall} value that looks
+like a URL. The hook lives in the agent repository under version control, reviewable in
+the same pull request as the policy it enforces\,---\,a locality that runtime-only
+policy engines cannot provide. The event schema for cross-runtime payment interop is
+deliberately deferred (\S\ref{sec:future}) until two or more enforcement implementations
+exist; standardizing it earlier would standardize imaginary interop.
 
 \subsection{Audit trail is \texttt{git log}}
 
@@ -666,16 +710,37 @@ prevent the following:
   local legal review; GAP provides the substrate, not the opinion.
 \end{enumerate}
 
+\subsection{Cryptographic identity (RFC, optional)}\label{sec:identity}
+
+The threat-model item on insiders motivates an optional cryptographic identity layer,
+accepted as an RFC (\texttt{spec/rfcs/identity.md}) in spec v0.4 and slated as an
+optional \texttt{identity} block on \texttt{agent.yaml}. It distinguishes two concerns
+the literature often conflates: \emph{provenance} (this manifest at this commit was
+authored by the holder of key $X$\,---\,already solvable with signed tags or sigstore,
+no spec change needed) and \emph{runtime delegation} (the running agent producing this
+output acts on behalf of parent agent $Y$, with scope $Z$, signed by $Y$'s key, not yet
+revoked\,---\,the genuine gap). The RFC binds a manifest to an Ed25519 public key, with
+an optional \texttt{passport\_uri} pointing at a richer identity document for scoped
+delegation and revocation, and reserves \texttt{signatures.<scope>} for manifest
+signatures. Verification semantics live in the spec; enforcement (refuse to load,
+sandbox, log-and-continue) is left to the runtime. The layer is fully optional;
+manifests without it are unchanged. This closes the loop on inter-organization
+delegation and the regulated-runtime check ``prove the agent that produced this output
+was the agent in the manifest, with authority that had not been revoked.''
+
 % ===============================================================
 \section{Reference Implementation}\label{sec:impl}
 % ===============================================================
 
-The reference implementation is \texttt{gapman} (``GAP manager''), a TypeScript CLI
-published to npm as both \texttt{@open-gitagent/gapman} (scoped, provenance-signed)
-and \texttt{gapman} (unscoped alias). The repository is
-\texttt{github.com/open-gitagent/gitagent}; the license is MIT.
+The reference implementation is \texttt{opengap}, a TypeScript CLI published to npm as
+\texttt{@open-gitagent/opengap} (scoped, provenance-signed via GitHub Actions OIDC) at
+v0.4.0. The \texttt{gitagent} command is installed as a backward-compatibility alias
+for the same binary. The repository is \texttt{github.com/open-gitagent/opengap}; the
+license is MIT. (The project was originally named \texttt{gitagent}, briefly
+\texttt{gapman}; the unscoped root name \texttt{opengap} is unavailable on npm under its
+package-similarity policy, so the scoped name is canonical.)
 
-\texttt{gapman} exposes the following verbs: \texttt{init} (scaffold from templates
+\texttt{opengap} exposes the following verbs: \texttt{init} (scaffold from templates
 \texttt{minimal}, \texttt{standard}, \texttt{full}, \texttt{llm-wiki}),
 \texttt{validate} (JSON-schema validation and optional compliance audit),
 \texttt{info} (summarize an agent), \texttt{export} (render to a target framework),
@@ -739,21 +804,26 @@ We report evaluation along three axes: adoption, fidelity, and qualitative compa
 
 \subsection{Adoption signals}
 
-As of \today, the reference repository \texttt{open-gitagent/gitagent} has
-\textbf{2{,}700+} GitHub stars, \textbf{21 community adapters} (Cursor, Kiro, Codex,
-Gemini, OpenCode contributed via pull request by external authors), \textbf{15+ closed
-issues} and active RFC discussions, and has been published on npm under both the
-scoped and unscoped names. Adapter contributions from external developers are the
-strongest signal that the protocol is perceived as a neutral substrate rather than a
-vendor product\,---\,no contributor has standing to force a breaking change in favor
-of their framework. These numbers are to be regenerated from the GitHub API at the
-time of arXiv submission; we report them here as a floor.
+As of \today, the reference repository \texttt{open-gitagent/opengap} has
+\textbf{2{,}700+} GitHub stars and \textbf{15 export adapters} plus \textbf{11 runtime
+runners}. Five adapters (Cursor, Kiro, Codex, Gemini, OpenCode) were contributed via
+pull request by external authors, and three spec features now in \texttt{main}\,---\,
+portable \texttt{mcp\_servers} (\S\ref{sec:protocol}), \texttt{financial\_governance}
+(\S\ref{sec:fingov}), and the cryptographic-identity RFC (\S\ref{sec:identity})\,---\,
+originated as community RFCs and pull requests. The package ships provenance-signed as
+\texttt{@open-gitagent/opengap} v0.4.0; continuous integration builds on Node 18, 20,
+and 22 and validates the bundled example agents on every push. Adapter and spec
+contributions from external developers are the strongest signal that the protocol is
+perceived as a neutral substrate rather than a vendor product\,---\,no contributor has
+standing to force a breaking change in favor of their framework. These numbers are to be
+regenerated from the GitHub API at the time of arXiv submission; we report them here as
+a floor.
 
 \subsection{Export fidelity}
 
 The fidelity profile (Table~\ref{tab:fidelity}, full matrix in
 Appendix~\ref{app:fidelity}) is derived by running
-\texttt{gapman export --format <target>} over the reference agents
+\texttt{opengap export --format <target>} over the reference agents
 \texttt{examples/standard/} and \texttt{examples/full/} and diffing the output for the
 presence of each GAP element. Two headline observations:
 
@@ -831,7 +901,7 @@ expanding contributor representation as adoption grows.
 \paragraph{Why a protocol and not a framework.}
 A framework solves problems for the framework's users. A protocol creates a substrate
 that multiple competing products can build on. OpenGAP chooses the protocol
-path\,---\,the reference implementation (\texttt{gapman}) is one of potentially many,
+path\,---\,the reference implementation (\texttt{opengap}) is one of potentially many,
 and the spec has deliberate latitude so that vendors can add value within target
 adapters without needing to modify the canonical definition.
 
@@ -846,11 +916,16 @@ adapters without needing to modify the canonical definition.
   \item \textbf{Formal SOD semantics.} Express \texttt{DUTIES.md} conflict rules as a
   set of logical assertions, and verify that an agent's tool-call trace satisfies
   them. A model checker such as TLA$^+$ or Alloy is a natural fit.
-  \item \textbf{Event schema for financial governance.} Once two or more external
-  enforcement implementations exist, standardize a \texttt{payment\_required}~/
-  \texttt{payment\_approval}~/ \texttt{payment\_receipt} event schema as an RFC
-  addendum. Doing this prematurely risks standardizing imaginary interop; waiting
-  for real implementations grounds it in observed need~\cite{rfc_38}.
+  \item \textbf{Financial-governance Phase 2/3.} The declarative
+  \texttt{financial\_governance} block shipped in v0.4 (\S\ref{sec:fingov}); Phase 2 is
+  a reference \texttt{pre\_tool\_use} enforcement hook, and Phase 3 is a
+  \texttt{payment\_required}~/ \texttt{payment\_approval}~/ \texttt{payment\_receipt}
+  event schema for cross-runtime interop. Phase 3 waits until two or more enforcement
+  implementations exist; standardizing earlier risks codifying imaginary
+  interop~\cite{rfc_38}.
+  \item \textbf{Identity-layer implementation.} The cryptographic-identity RFC
+  (\S\ref{sec:identity}) is accepted; the next step is the \texttt{identity} block in
+  \texttt{agent-yaml.schema.json}, a reference verifier, and a delegation-chain example.
   \item \textbf{Deeper A2A integration.} GAP currently declares A2A compatibility in
   \texttt{agent.yaml} but does not ship an A2A server adapter. A reference A2A
   adapter would close the loop between agent-to-agent interfaces and GAP definitions.
