@@ -2,6 +2,10 @@
   <img src="banner.png" alt="gitagent banner" width="700" />
 </p>
 
+<p align="center">
+  <img src="hero.png" alt="OpenGAP — GitAgentProtocol (Open GAP)" width="640" />
+</p>
+
 # OpenGAP | your repository becomes your agent
 
 > **`opengap`** — the OpenGAP CLI, published as [`@open-gitagent/opengap`](https://www.npmjs.com/package/@open-gitagent/opengap). Previously published as `@open-gitagent/gapman` and originally `@open-gitagent/gitagent`; the `gitagent` command is still installed as an alias for backward compatibility.
