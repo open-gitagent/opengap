@@ -1,9 +1,5 @@
 <p align="center">
-  <img src="banner.png" alt="gitagent banner" width="700" />
-</p>
-
-<p align="center">
-  <img src="hero.png" alt="OpenGAP — GitAgentProtocol (Open GAP)" width="640" />
+  <img src="hero.png" alt="OpenGAP — GitAgentProtocol (Open GAP)" width="700" />
 </p>
 
 # OpenGAP | your repository becomes your agent
