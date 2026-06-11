@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/open-gitagent-opengap-badge.png)](https://mseep.ai/app/open-gitagent-opengap)
+
 <p align="center">
   <img src="hero.png" alt="OpenGAP — GitAgentProtocol (Open GAP)" width="700" />
 </p>
