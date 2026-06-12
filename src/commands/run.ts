@@ -14,7 +14,7 @@ import { runWithGitHub } from '../runners/github.js';
 import { runWithGit } from '../runners/git.js';
 import { runWithOpenCode } from '../runners/opencode.js';
 import { runWithGemini } from '../runners/gemini.js';
-import { runWithGitclaw } from '../runners/gitclaw.js';
+import { runWithGitagent } from '../runners/gitagent.js';
 
 interface RunOptions {
   repo?: string;
@@ -30,7 +30,7 @@ interface RunOptions {
 export const runCommand = new Command('run')
   .description('Run an agent from a git repository or local directory')
   .option('-r, --repo <url>', 'Git repository URL')
-  .option('-a, --adapter <name>', 'Adapter: claude, openai, crewai, openclaw, nanobot, lyzr, github, opencode, gemini, gitclaw, git, prompt', 'claude')
+  .option('-a, --adapter <name>', 'Adapter: claude, openai, crewai, openclaw, nanobot, lyzr, github, opencode, gemini, gitagent, git, prompt', 'claude')
   .option('-b, --branch <branch>', 'Git branch/tag to clone', 'main')
   .option('--refresh', 'Force re-clone (pull latest)', false)
   .option('--no-cache', 'Clone to temp dir, delete on exit')
@@ -126,8 +126,8 @@ export const runCommand = new Command('run')
         case 'gemini':
           runWithGemini(agentDir, manifest, { prompt: options.prompt, workspace: options.workspace });
           break;
-        case 'gitclaw':
-          runWithGitclaw(agentDir, manifest, { prompt: options.prompt, workspace: options.workspace });
+        case 'gitagent':
+          runWithGitagent(agentDir, manifest, { prompt: options.prompt, workspace: options.workspace });
           break;
         case 'git':
           if (!options.repo) {
@@ -148,7 +148,7 @@ export const runCommand = new Command('run')
           break;
         default:
           error(`Unknown adapter: ${options.adapter}`);
-          info('Supported adapters: claude, openai, crewai, openclaw, nanobot, lyzr, github, opencode, gemini, gitclaw, git, prompt');
+          info('Supported adapters: claude, openai, crewai, openclaw, nanobot, lyzr, github, opencode, gemini, gitagent, git, prompt');
           process.exit(1);
       }
     } catch (e) {

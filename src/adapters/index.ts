@@ -10,4 +10,4 @@ export { exportToCursorString, exportToCursor } from './cursor.js';
 export { exportToGeminiString, exportToGemini } from './gemini.js';
 export { exportToCodexString, exportToCodex } from './codex.js';
 export { exportToKiroString, exportToKiro } from './kiro.js';
-export { exportToGitclawString, exportToGitclaw } from './gitclaw.js';
+export { exportToGitagentString, exportToGitagent } from './gitagent.js';

@@ -636,7 +636,7 @@ opengap run [options]
 
 Either `--repo` or `--dir` is required.
 
-`--workspace` lets an agent definition live separately from the repository it operates on. It is honored by adapters that can safely set the spawned process working directory directly, including `claude`, `openai`, `crewai`, `openclaw`, and `nanobot`. Adapters that generate an isolated runtime workspace, such as `opencode`, `gemini`, and `gitclaw`, continue to run from that prepared workspace to avoid overwriting files such as `AGENTS.md`, `GEMINI.md`, or `agent.yaml` in the target repository.
+`--workspace` lets an agent definition live separately from the repository it operates on. It is honored by adapters that can safely set the spawned process working directory directly, including `claude`, `openai`, `crewai`, `openclaw`, and `nanobot`. Adapters that generate an isolated runtime workspace, such as `opencode`, `gemini`, and `gitagent`, continue to run from that prepared workspace to avoid overwriting files such as `AGENTS.md`, `GEMINI.md`, or `agent.yaml` in the target repository.
 
 **Available adapters:**
 

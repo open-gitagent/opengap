@@ -5,9 +5,9 @@ import { loadAgentManifest, loadFileIfExists } from '../utils/loader.js';
 import { loadAllSkills } from '../utils/skill-loader.js';
 
 /**
- * Export a gitagent to gitclaw format.
+ * Export a gitagent to gitagent format.
  *
- * Gitclaw uses the same git-native directory structure but with differences:
+ * Gitagent uses the same git-native directory structure but with differences:
  *   - agent.yaml model format: "provider:model-id" (colon, not slash)
  *   - knowledge/index.yaml uses "entries" (not "documents")
  *   - tools are a flat string array of built-in names in agent.yaml
@@ -16,7 +16,7 @@ import { loadAllSkills } from '../utils/skill-loader.js';
  * Most files (SOUL.md, RULES.md, DUTIES.md, skills/, hooks/) pass through
  * unchanged. The adapter transforms agent.yaml and knowledge/index.yaml.
  */
-export interface GitclawExport {
+export interface GitagentExport {
   agentYaml: string;
   soulMd: string | null;
   rulesMd: string | null;
@@ -27,7 +27,7 @@ export interface GitclawExport {
   hooks: string | null;
 }
 
-export function exportToGitclaw(dir: string): GitclawExport {
+export function exportToGitagent(dir: string): GitagentExport {
   const agentDir = resolve(dir);
   const manifest = loadAgentManifest(agentDir);
 
@@ -43,8 +43,8 @@ export function exportToGitclaw(dir: string): GitclawExport {
   return { agentYaml, soulMd, rulesMd, dutiesMd, knowledgeIndex, skills, tools, hooks };
 }
 
-export function exportToGitclawString(dir: string): string {
-  const exp = exportToGitclaw(dir);
+export function exportToGitagentString(dir: string): string {
+  const exp = exportToGitagent(dir);
   const parts: string[] = [];
 
   parts.push('# === agent.yaml ===');
@@ -102,14 +102,14 @@ function buildAgentYaml(
   if (manifest.author) gc.author = manifest.author;
   if (manifest.license) gc.license = manifest.license;
 
-  // Model: convert to gitclaw "provider:model-id" format
+  // Model: convert to gitagent "provider:model-id" format
   if (manifest.model) {
     const model: Record<string, unknown> = {};
     if (manifest.model.preferred) {
-      model.preferred = toGitclawModel(manifest.model.preferred);
+      model.preferred = toGitagentModel(manifest.model.preferred);
     }
     if (manifest.model.fallback) {
-      model.fallback = manifest.model.fallback.map(toGitclawModel);
+      model.fallback = manifest.model.fallback.map(toGitagentModel);
     }
     if (manifest.model.constraints) {
       model.constraints = manifest.model.constraints;
@@ -152,11 +152,11 @@ function buildAgentYaml(
 }
 
 /**
- * Convert gitagent model name to gitclaw "provider:model-id" format.
+ * Convert gitagent model name to gitagent "provider:model-id" format.
  * gitagent: "claude-sonnet-4-5" or "anthropic/claude-sonnet-4-5"
- * gitclaw:  "anthropic:claude-sonnet-4-5"
+ * gitagent:  "anthropic:claude-sonnet-4-5"
  */
-function toGitclawModel(model: string): string {
+function toGitagentModel(model: string): string {
   // Already in provider:model format
   if (model.includes(':') && !model.includes('://')) return model;
 
@@ -191,7 +191,7 @@ function collectToolNames(agentDir: string): string[] {
 }
 
 /**
- * Convert gitagent knowledge/index.yaml (documents) to gitclaw format (entries).
+ * Convert gitagent knowledge/index.yaml (documents) to gitagent format (entries).
  */
 function buildKnowledgeIndex(agentDir: string): string | null {
   const indexPath = join(agentDir, 'knowledge', 'index.yaml');

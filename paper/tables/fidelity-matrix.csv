@@ -12,5 +12,5 @@ openclaw,F,F,P,F,F,P,F,F,F
 nanobot,F,F,P,F,F,P,P,-,-
 copilot,F,F,P,P,P,-,-,-,-
 github,F,F,P,P,F,-,-,-,P
-gitclaw,F,F,F,F,F,F,F,F,F
+gitagent,F,F,F,F,F,F,F,F,F
 system-prompt,F,F,P,P,-,-,-,-,-

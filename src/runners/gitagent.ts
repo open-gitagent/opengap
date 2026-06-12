@@ -3,35 +3,35 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { exportToGitclaw } from '../adapters/gitclaw.js';
+import { exportToGitagent } from '../adapters/gitagent.js';
 import { AgentManifest } from '../utils/loader.js';
 import { error, info } from '../utils/format.js';
 
-export interface GitclawRunOptions {
+export interface GitagentRunOptions {
   prompt?: string;
   workspace?: string;
 }
 
 /**
- * Run a gitagent agent using the gitclaw SDK.
+ * Run a gitagent agent using the gitagent SDK.
  *
- * Creates a temporary workspace with the full gitclaw directory structure:
+ * Creates a temporary workspace with the full gitagent directory structure:
  *   - agent.yaml (provider:model format)
  *   - SOUL.md, RULES.md, DUTIES.md
  *   - skills/, tools/, hooks/, knowledge/
  *
- * Then launches `gitclaw` CLI in that workspace.
- * Supports both interactive mode (no prompt) and single-shot mode (`gitclaw run -p`).
+ * Then launches `gitagent` CLI in that workspace.
+ * Supports both interactive mode (no prompt) and single-shot mode (`gitagent run -p`).
  */
-export function runWithGitclaw(agentDir: string, manifest: AgentManifest, options: GitclawRunOptions = {}): void {
+export function runWithGitagent(agentDir: string, manifest: AgentManifest, options: GitagentRunOptions = {}): void {
   if (options.workspace) {
-    info('--workspace is not applied to gitclaw because it reads agent.yaml and related files from the prepared temporary workspace.');
+    info('--workspace is not applied to gitagent because it reads agent.yaml and related files from the prepared temporary workspace.');
   }
 
-  const exp = exportToGitclaw(agentDir);
+  const exp = exportToGitagent(agentDir);
 
   // Create a temporary workspace
-  const workspaceDir = join(tmpdir(), `gitagent-gitclaw-${randomBytes(4).toString('hex')}`);
+  const workspaceDir = join(tmpdir(), `gitagent-ws-${randomBytes(4).toString('hex')}`);
   mkdirSync(workspaceDir, { recursive: true });
 
   // Write agent.yaml
@@ -78,19 +78,19 @@ export function runWithGitclaw(agentDir: string, manifest: AgentManifest, option
     info(`  Model: ${manifest.model.preferred}`);
   }
 
-  // Build gitclaw CLI args
+  // Build gitagent CLI args
   const args: string[] = [];
 
   if (options.prompt) {
     args.push('run', '-p', options.prompt);
   }
 
-  info(`Launching gitclaw agent "${manifest.name}"...`);
+  info(`Launching gitagent agent "${manifest.name}"...`);
   if (!options.prompt) {
     info('Starting interactive mode. Type your messages to chat.');
   }
 
-  const result = spawnSync('gitclaw', args, {
+  const result = spawnSync('gitagent', args, {
     stdio: 'inherit',
     cwd: workspaceDir,
     env: { ...process.env },
@@ -100,8 +100,8 @@ export function runWithGitclaw(agentDir: string, manifest: AgentManifest, option
   try { rmSync(workspaceDir, { recursive: true, force: true }); } catch { /* ignore */ }
 
   if (result.error) {
-    error(`Failed to launch gitclaw: ${result.error.message}`);
-    info('Make sure gitclaw is installed: npm install -g gitclaw');
+    error(`Failed to launch gitagent: ${result.error.message}`);
+    info('Make sure gitagent is installed: npm i @open-gitagent/opengap');
     process.exitCode = 1;
     return;
   }

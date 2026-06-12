@@ -13,7 +13,7 @@ OpenGAP Working Group
 
 AI agents are being deployed into regulated, high-stakes environments faster than the tooling to govern them has matured. Today, an agent's *identity* lives in a Python class, its *policy* lives in a dashboard, its *memory* lives in a vector store, its *audit trail* lives nowhere in particular, and its *version* is whatever commit someone happens to deploy. This paper argues that the right unit of an agent is not a process, not a model, not a config file, and not a dashboard, but a **git repository** — and presents the **GitAgentProtocol (OpenGAP)**, an open standard that makes that abstraction concrete.
 
-Under OpenGAP, an agent is fully described by files in a directory: identity (`SOUL.md`), hard constraints (`RULES.md`), segregation-of-duties (`DUTIES.md`), skills, tools, knowledge, memory, hooks, sub-agents, and regulatory-compliance artifacts. A single canonical definition deterministically exports to **15 execution environments** (Claude Code, OpenAI Agents SDK, CrewAI, Cursor, Gemini CLI, Codex, OpenCode, Kiro, Lyzr, OpenClaw, Nanobot, GitHub Copilot, GitHub Models, GitClaw, system-prompt) with a documented **fidelity profile** per target. **Fourteen lifecycle patterns** — which we show decompose into four meta-patterns: *structural guarantees*, *lifecycle operations*, *collaboration primitives*, and *runtime hooks* — emerge naturally from the git substrate. Compliance is a first-class spec element, mapped onto FINRA 3110/4511/2210, SEC Reg BI/Reg S-P/17a-4, Federal Reserve SR 11-7, and CFPB Circular 2022-03, and enforced through `pre_tool_use` hooks with `fail_open: false` semantics. We prove a simple **structural SOD theorem**: any segregation-of-duties conflict declared in `DUTIES.md` is unbypassable by the agent itself, provided branch-protection rules are active and the agent has no force-push rights.
+Under OpenGAP, an agent is fully described by files in a directory: identity (`SOUL.md`), hard constraints (`RULES.md`), segregation-of-duties (`DUTIES.md`), skills, tools, knowledge, memory, hooks, sub-agents, and regulatory-compliance artifacts. A single canonical definition deterministically exports to **15 execution environments** (Claude Code, OpenAI Agents SDK, CrewAI, Cursor, Gemini CLI, Codex, OpenCode, Kiro, Lyzr, OpenClaw, Nanobot, GitHub Copilot, GitHub Models, Gitagent, system-prompt) with a documented **fidelity profile** per target. **Fourteen lifecycle patterns** — which we show decompose into four meta-patterns: *structural guarantees*, *lifecycle operations*, *collaboration primitives*, and *runtime hooks* — emerge naturally from the git substrate. Compliance is a first-class spec element, mapped onto FINRA 3110/4511/2210, SEC Reg BI/Reg S-P/17a-4, Federal Reserve SR 11-7, and CFPB Circular 2022-03, and enforced through `pre_tool_use` hooks with `fail_open: false` semantics. We prove a simple **structural SOD theorem**: any segregation-of-duties conflict declared in `DUTIES.md` is unbypassable by the agent itself, provided branch-protection rules are active and the agent has no force-push rights.
 
 Spec v0.4 adds three concrete extensions to this surface: portable `mcp_servers` declarations that export to each runtime's native MCP configuration, a `financial_governance` block with spending caps and approval thresholds for payment-capable agents, and an accepted RFC for an optional Ed25519 cryptographic-identity layer.
 
@@ -313,7 +313,7 @@ Fifteen targets currently ship:
 | `nanobot`        |   ✓    |    ✓    | Nanobot CLI        | Nanobot config                            |
 | `copilot`        |   ✓    |    –    | GitHub Copilot     | `.github/copilot-*`                       |
 | `github`         |   ✓    |    ✓    | GitHub Models      | GitHub Actions workflow                   |
-| `gitclaw`        |   ✓    |    ✓    | GitClaw            | GitClaw workspace                         |
+| `gitagent`        |   ✓    |    ✓    | Gitagent            | Gitagent workspace                         |
 | `system-prompt`  |   ✓    |    –    | any LLM            | Concatenated text                         |
 
 ### 5.4 Fidelity profile
@@ -663,7 +663,7 @@ As of May 2026, the reference repository `open-gitagent/opengap` has:
 - **Three spec features shipped from community RFCs/PRs** in v0.4: portable `mcp_servers`, the `financial_governance` block, and the accepted cryptographic-identity RFC
 - **Provenance-signed** releases on npm as `@open-gitagent/opengap` v0.4.0 (the unscoped root `opengap` is blocked by npm's package-similarity policy, so the scoped name is canonical)
 - **CI on Node 18 / 20 / 22** building and validating the bundled example agents on every push
-- **Cross-community pollination**: GAP agents appear in registries that predate it (the Lyzr registry) and in new registries that postdate it (GitClaw, the OpenClaw ecosystem)
+- **Cross-community pollination**: GAP agents appear in registries that predate it (the Lyzr registry) and in new registries that postdate it (Gitagent, the OpenClaw ecosystem)
 
 External adapter and spec contributions are the strongest signal that the protocol is perceived as a **neutral substrate**, not a vendor product. No single contributor has standing to force a breaking change in favor of their framework.
 
@@ -841,7 +841,7 @@ The OpenGAP working group thanks contributors to the reference implementation an
 | `nanobot`        |  F  |  F  |  P  |  F  |  F  |  P  |  P   |  ⊥  |  ⊥  |
 | `copilot`        |  F  |  F  |  P  |  P  |  P  |  ⊥  |  ⊥   |  ⊥  |  ⊥  |
 | `github`         |  F  |  F  |  P  |  P  |  F  |  ⊥  |  ⊥   |  ⊥  |  P  |
-| `gitclaw`        |  F  |  F  |  F  |  F  |  F  |  F  |  F   |  F  |  F  |
+| `gitagent`        |  F  |  F  |  F  |  F  |  F  |  F  |  F   |  F  |  F  |
 | `system-prompt`  |  F  |  F  |  P  |  P  |  ⊥  |  ⊥  |  ⊥   |  ⊥  |  ⊥  |
 
 **Legend:** **F** = fully preserved · **P** = partially preserved (text present, semantics dropped) · **⊥** = not representable in the target format. Columns correspond to $I$=identity, $R$=rules, $D$=duties, $S$=skills, $T$=tools, $H$=hooks, $Me$=memory, $A$=sub-agents, $C$=compliance.
@@ -887,7 +887,7 @@ A CLI or library is **GAP-conformant at level $k$** iff:
 - **Level 2 (export):** for at least one target $t$, it produces an output artifact whose fidelity profile matches the specification's published profile for $t$.
 - **Level 3 (run):** for at least one target $t$, it launches the target runtime in a way that honors $(R, D, H)$ when those elements are present.
 
-The reference implementation `opengap` is Level 3-conformant on Claude Code, OpenCode, Gemini, CrewAI, OpenAI, Lyzr, OpenClaw, Nanobot, GitHub, and GitClaw.
+The reference implementation `opengap` is Level 3-conformant on Claude Code, OpenCode, Gemini, CrewAI, OpenAI, Lyzr, OpenClaw, Nanobot, GitHub, and Gitagent.
 
 ---
 

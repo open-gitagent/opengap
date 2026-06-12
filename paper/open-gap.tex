@@ -77,7 +77,7 @@ artifacts (\texttt{compliance/})\,---\,all as files under version control.
 From this single source of truth, the reference CLI (\texttt{opengap}) deterministically
 exports the same agent into fifteen different execution environments, including Claude
 Code, OpenAI Agents SDK, CrewAI, Cursor, Gemini CLI, Codex, OpenCode, Kiro, Lyzr,
-OpenClaw, Nanobot, GitHub Copilot, GitHub Models, GitClaw, and a plain system-prompt
+OpenClaw, Nanobot, GitHub Copilot, GitHub Models, Gitagent, and a plain system-prompt
 target. We describe the repository-as-agent abstraction, the adapter model underlying
 this portability, fourteen architectural patterns that emerge when agents are defined
 git-natively (human-in-the-loop learning, agent versioning, branch-based deployment,
@@ -414,7 +414,7 @@ Adapter & Export & Runtime & Required & Target native format \\
 \texttt{nanobot}        & \checkmark & \checkmark & Nanobot CLI                   & Nanobot config \\
 \texttt{copilot}        & \checkmark & -          & GitHub Copilot                & \texttt{.github/copilot-*} \\
 \texttt{github}         & \checkmark & \checkmark & GitHub Models                 & GitHub Actions workflow \\
-\texttt{gitclaw}        & \checkmark & \checkmark & GitClaw                       & GitClaw workspace \\
+\texttt{gitagent}        & \checkmark & \checkmark & Gitagent                       & Gitagent workspace \\
 \texttt{system-prompt}  & \checkmark & -          & any LLM                       & Concatenated text \\
 \bottomrule
 \end{tabular}
@@ -457,7 +457,7 @@ Adapter & \textsc{soul} & \textsc{rules} & \textsc{duties} & skills & tools & ho
 \end{tabular}
 \caption{Abbreviated fidelity profile. \textbf{F} = fully preserved, \textbf{P} =
 partially (text only, semantics dropped), \textbf{-} = not representable. Rows for
-\texttt{copilot}, \texttt{github}, \texttt{gitclaw} omitted for space; see
+\texttt{copilot}, \texttt{github}, \texttt{gitagent} omitted for space; see
 Appendix~\ref{app:fidelity}.}
 \label{tab:fidelity}
 \end{table}
@@ -1044,7 +1044,7 @@ Adapter & \textsc{soul} & \textsc{rules} & \textsc{duties} & skills & tools & ho
 \texttt{nanobot}         & F & F & P & F & F & P & P & - & - \\
 \texttt{copilot}         & F & F & P & P & P & - & - & - & - \\
 \texttt{github}          & F & F & P & P & F & - & - & - & P \\
-\texttt{gitclaw}         & F & F & F & F & F & F & F & F & F \\
+\texttt{gitagent}         & F & F & F & F & F & F & F & F & F \\
 \texttt{system-prompt}   & F & F & P & P & - & - & - & - & - \\
 \bottomrule
 \end{tabular}

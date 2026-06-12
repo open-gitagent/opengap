@@ -370,7 +370,7 @@ Adapters are used by both `export` and `run`. Available adapters:
 | `copilot` | GitHub Copilot instructions (export only) |
 | `codex` | OpenAI Codex CLI instructions (export only) |
 | `kiro` | Kiro agent format (export only) |
-| `gitclaw` | GitClaw agent format |
+| `gitagent` | Gitagent agent format |
 
 ```bash
 # Export to system prompt
