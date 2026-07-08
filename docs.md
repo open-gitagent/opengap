@@ -695,6 +695,56 @@ opengap run -d ./my-agent -a prompt
 
 ---
 
+### session
+
+Transform and resume conversation **sessions** across tools. OpenGAP reads a session from one tool into a tool-neutral **canonical session format**, then writes it out to another tool — so a chat can move between Copilot, Claude Code, gitagent, Codex, and Gemini CLI (any-to-any). Carries **messages + tool calls (+ memory)**; model settings are excluded.
+
+```bash
+opengap session list   --from <tool> [--dir <agentDir>]
+opengap session export --from <tool> --session <id> [-o file.json]
+opengap session import --from <tool> --session <id> --to <tool> [--agent <dir>] [--session-id <id>]
+```
+
+Tools: `copilot`, `claude`, `gitagent`, `codex`, `gemini`.
+
+| Command | What it does |
+|---------|--------------|
+| `list` | List available sessions for a tool (Copilot session-state dirs, Claude project transcripts, gitagent branches, Codex rollouts, or Gemini `~/.gemini/tmp/*/chats`). |
+| `export` | Read a session and output the canonical session JSON (stdout or `-o`). This is the standalone Transformer. |
+| `import` | Read from `--from`, convert to canonical, and write into `--to`. Prints how to resume. |
+
+**Resume mechanics per target:**
+- **gitagent** — distills the session into `memory/MEMORY.md` (what the gitagent CLI reloads and recalls) and writes the raw chat-history as an archive. In a git-native agent it commits the history on a `chat/*` branch so it appears in the voice UI's session list. Resume: `cd <agent> && gitagent`.
+- **claude** — writes an Anthropic-format transcript into `~/.claude/projects/<cwd>/<uuid>.jsonl`. Resume via the shipped passthrough: `opengap run -a claude --resume <uuid> --workspace <cwd>`. _(Best-effort — Claude Code's transcript format is internal; verify resume.)_
+- **codex** — writes a native rollout JSONL under `~/.codex/sessions/…` **and** registers the session in Codex's state DB (`~/.codex/state_<N>.sqlite`, the `threads` index the picker reads). Resume: `codex resume` (or `codex resume --last`). Requires Node 22.5+ (built-in `node:sqlite`). _(Reading Codex also drops its synthetic `<environment_context>` / `<user_instructions>` injections so only real turns carry over.)_
+- **gemini** — writes a Gemini `--session-file` JSONL (metadata line + `user`/`gemini` turns, memory carried as a leading turn). Tool steps are carried too — `tool_call` → a `gemini` record with `toolCalls`, `tool_result` → a `user` record with a `functionResponse`, paired by id. Resume: `cd <cwd> && gemini --session-file <path>`, which imports and re-homes the session into that project (afterwards it's listed by `gemini --list-sessions` / `--resume`). Reading Gemini drops its synthetic `<session_context>` / editor-context injections and collapses the duplicate assistant text Gemini logs alongside tool calls.
+  - **Known limitation:** tool steps are only carried on write when the source links them by **id** (codex, claude, copilot). Sources that link tool calls **by order** (gitagent) have no ids, so their `tool_call` / `tool_result` steps are dropped rather than emitted unpaired (which Gemini could mis-render). The conversation text always resumes regardless.
+- **copilot** — experimental: writes `events.jsonl` but not Copilot's SQLite index, so the Copilot CLI may not auto-list/resume it. Interop/archival only for now.
+
+```bash
+# List Copilot sessions, then bring one into a gitagent agent and continue it
+opengap session list   --from copilot
+opengap session import --from copilot --session <id> --to gitagent --agent ./my-agent
+cd ./my-agent && gitagent          # recalls the imported session from MEMORY.md
+
+# Move a Copilot session into Claude Code and resume it
+opengap session import --from copilot --session <id> --to claude --agent ~/code/my-app
+opengap run -a claude --resume <uuid> --workspace ~/code/my-app -p "continue"
+
+# Bring a gitagent chat into Codex and resume it there
+opengap session import --from gitagent --session chat/my-chat --dir ./my-agent --to codex --agent ~/code/my-app
+codex resume                       # the imported session shows in the picker
+
+# Bring a gitagent chat into Gemini CLI and resume it there
+opengap session import --from gitagent --session chat/my-chat --dir ./my-agent --to gemini --agent ~/code/my-app
+cd ~/code/my-app && gemini --session-file ~/code/my-app/gemini-session-<id>.jsonl
+
+# Just inspect the canonical form
+opengap session export --from codex --session <uuid> -o session.json
+```
+
+---
+
 ### lyzr
 
 Manage Lyzr Studio agents — create, update, inspect, and run.

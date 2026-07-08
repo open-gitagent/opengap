@@ -12,13 +12,14 @@ import { skillsCommand } from './commands/skills.js';
 import { runCommand } from './commands/run.js';
 import { lyzrCommand } from './commands/lyzr.js';
 import { registryCommand } from './commands/registry.js';
+import { sessionCommand } from './commands/session.js';
 
 const program = new Command();
 
 program
   .name('opengap')
   .description('OpenGAP — the Git Agent Protocol: a framework-agnostic, git-native standard for defining AI agents')
-  .version('0.5.0');
+  .version('0.6.0');
 
 program.addCommand(initCommand);
 program.addCommand(validateCommand);
@@ -31,5 +32,6 @@ program.addCommand(skillsCommand);
 program.addCommand(runCommand);
 program.addCommand(lyzrCommand);
 program.addCommand(registryCommand);
+program.addCommand(sessionCommand);
 
 program.parse();
