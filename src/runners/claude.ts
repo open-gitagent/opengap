@@ -7,6 +7,7 @@ import yaml from 'js-yaml';
 import { exportToSystemPrompt } from '../adapters/system-prompt.js';
 import { AgentManifest } from '../utils/loader.js';
 import { loadAllSkills, getAllowedTools } from '../utils/skill-loader.js';
+import { parseModel } from '../utils/model.js';
 import { error, info, warn } from '../utils/format.js';
 
 export interface ClaudeRunOptions {
@@ -30,14 +31,14 @@ export function runWithClaude(agentDir: string, manifest: AgentManifest, options
 
   const args: string[] = [];
 
-  // Model
+  // Model (canonical provider:model → Claude CLI wants the bare model id)
   if (manifest.model?.preferred) {
-    args.push('--model', manifest.model.preferred);
+    args.push('--model', parseModel(manifest.model.preferred).modelId);
   }
 
   // Fallback model
   if (manifest.model?.fallback?.length) {
-    args.push('--fallback-model', manifest.model.fallback[0]);
+    args.push('--fallback-model', parseModel(manifest.model.fallback[0]).modelId);
   }
 
   // Max turns

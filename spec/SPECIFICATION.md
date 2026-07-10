@@ -95,7 +95,7 @@ All YAML keys use **snake_case**. Agent names, skill names, and tool names use *
 | `author` | string | Author name or organization |
 | `license` | string | SPDX license identifier |
 | `model` | object | Model preferences (see Model section) |
-| `model.preferred` | string | Primary model ID (e.g., `claude-opus-4-6`, `gpt-4o`) |
+| `model.preferred` | string | Primary model ID (e.g., `anthropic:claude-opus-4-6`, `openai:gpt-4o`) |
 | `model.fallback` | string[] | Fallback model IDs in priority order |
 | `model.constraints` | object | Parameters: `temperature`, `max_tokens`, `top_p`, `top_k`, `stop_sequences`, `presence_penalty`, `frequency_penalty` |
 | `extends` | string | Parent agent (git URL or local path) |
@@ -279,9 +279,9 @@ description: Financial compliance analysis agent
 author: Acme Financial
 license: proprietary
 model:
-  preferred: claude-opus-4-6
+  preferred: anthropic:claude-opus-4-6
   fallback:
-    - claude-sonnet-4-5-20250929
+    - anthropic:claude-sonnet-4-5-20250929
   constraints:
     temperature: 0.1
     max_tokens: 8192
@@ -606,7 +606,7 @@ output_schema:
           url: { type: string }
 implementation:
   type: script
-  path: search-regulations.py
+  script: search-regulations.py
   runtime: python3
   timeout: 30
 annotations:
@@ -775,7 +775,7 @@ agents/
 name: fact-checker
 description: Verifies claims against authoritative sources
 model:
-  preferred: claude-haiku-4-5-20251001
+  preferred: anthropic:claude-haiku-4-5-20251001
 delegation:
   mode: auto
   triggers:

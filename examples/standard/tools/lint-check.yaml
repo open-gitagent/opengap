@@ -27,7 +27,7 @@ output_schema:
           rule: { type: string }
 implementation:
   type: script
-  path: lint-check.sh
+  script: lint-check.sh
   runtime: bash
   timeout: 30
 annotations:

@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 import yaml from 'js-yaml';
 import { loadAgentManifest, loadFileIfExists } from '../utils/loader.js';
 import { loadAllSkills, getAllowedTools } from '../utils/skill-loader.js';
+import { parseModel } from '../utils/model.js';
 import { buildMcpServersMarkdown } from './shared.js';
 
 export function exportToOpenAI(dir: string): string {
@@ -42,7 +43,7 @@ export function exportToOpenAI(dir: string): string {
   lines.push(`    instructions="""${systemPrompt.replace(/"""/g, '\\"\\"\\"')}""",`);
 
   if (manifest.model?.preferred) {
-    lines.push(`    model="${manifest.model.preferred}",`);
+    lines.push(`    model="${parseModel(manifest.model.preferred).modelId}",`);
   }
 
   if (tools.length > 0) {

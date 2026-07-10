@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 import yaml from 'js-yaml';
 import { loadAgentManifest, loadFileIfExists } from '../utils/loader.js';
 import { loadAllSkills, getAllowedTools } from '../utils/skill-loader.js';
+import { parseModel } from '../utils/model.js';
 import { buildComplianceSection, buildMcpServersConfig } from './shared.js';
 
 /**
@@ -174,11 +175,10 @@ function buildInstructions(
 function buildConfig(manifest: ReturnType<typeof loadAgentManifest>): Record<string, unknown> {
   const config: Record<string, unknown> = {};
 
-  // Map model preference to OpenCode provider/model config
+  // Canonical "provider:model" → OpenCode "provider/model" config
   if (manifest.model?.preferred) {
-    const model = manifest.model.preferred;
-    const provider = inferProvider(model);
-    config.model = `${provider}/${model}`;
+    const { provider, modelId } = parseModel(manifest.model.preferred);
+    config.model = `${provider}/${modelId}`;
     config.provider = {
       [provider]: {
         npm: getNpmPackage(provider),
@@ -193,15 +193,6 @@ function buildConfig(manifest: ReturnType<typeof loadAgentManifest>): Record<str
   }
 
   return config;
-}
-
-function inferProvider(model: string): string {
-  if (model.startsWith('claude') || model.includes('anthropic')) return 'anthropic';
-  if (model.startsWith('gpt') || model.startsWith('o1') || model.startsWith('o3') || model.startsWith('o4')) return 'openai';
-  if (model.startsWith('gemini')) return 'google';
-  if (model.startsWith('deepseek')) return 'deepseek';
-  if (model.startsWith('llama') || model.startsWith('mistral')) return 'ollama';
-  return 'openai';
 }
 
 function getNpmPackage(provider: string): string {

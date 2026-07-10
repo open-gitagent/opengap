@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 import yaml from 'js-yaml';
 import { loadAgentManifest, loadFileIfExists } from '../utils/loader.js';
 import { loadAllSkills, getAllowedTools } from '../utils/skill-loader.js';
+import { parseModel } from '../utils/model.js';
 import { buildComplianceSection, buildMcpServersConfig } from './shared.js';
 
 /**
@@ -171,17 +172,13 @@ function buildInstructions(
 function buildConfig(manifest: ReturnType<typeof loadAgentManifest>): Record<string, unknown> {
   const config: Record<string, unknown> = {};
 
-  // Map model preference to Codex CLI model format
-  // Codex CLI config.json accepts: { model: "string", provider?: "openai|azure|..." }
+  // Canonical "provider:model" → Codex CLI { model, provider? }
+  // Codex defaults to openai; any non-openai provider is reached via its openai-compatible endpoint.
   if (manifest.model?.preferred) {
-    const model = manifest.model.preferred;
-    config.model = model;
-
-    // Add provider hint when it can be inferred from the model name
-    const provider = inferProvider(model);
-    if (provider !== 'openai') {
-      // Only emit provider when non-default — Codex defaults to openai
-      config.provider = provider;
+    const { provider, modelId } = parseModel(manifest.model.preferred);
+    config.model = modelId;
+    if (provider !== 'openai' && provider !== 'openai-codex') {
+      config.provider = 'openai-compatible';
     }
   }
 
@@ -194,16 +191,3 @@ function buildConfig(manifest: ReturnType<typeof loadAgentManifest>): Record<str
   return config;
 }
 
-/**
- * Infer the Codex CLI provider name from a model identifier.
- * Codex CLI providers: openai (default), azure, ollama, openai-compatible
- */
-function inferProvider(model: string): string {
-  if (model.startsWith('claude') || model.includes('anthropic')) return 'openai-compatible';
-  if (model.startsWith('gemini') || model.includes('google')) return 'openai-compatible';
-  if (model.startsWith('deepseek')) return 'openai-compatible';
-  if (model.startsWith('llama') || model.startsWith('mistral') || model.startsWith('qwen')) return 'ollama';
-  if (model.startsWith('o1') || model.startsWith('o3') || model.startsWith('o4') || model.startsWith('gpt')) return 'openai';
-  if (model.startsWith('codex')) return 'openai';
-  return 'openai';
-}

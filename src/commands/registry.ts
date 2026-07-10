@@ -101,7 +101,7 @@ export const registryCommand = new Command('registry')
     // ── Step 5: Build metadata.json ──
     const adapters = options.adapters.split(',').map(a => a.trim()).filter(Boolean);
     const tags = manifest.tags ?? [];
-    const model = manifest.model?.preferred ?? 'claude-sonnet-4-5-20250929';
+    const model = manifest.model?.preferred ?? 'anthropic:claude-sonnet-4-5-20250929';
     const license = manifest.license ?? 'MIT';
 
     const metadata = {

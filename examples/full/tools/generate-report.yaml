@@ -37,7 +37,7 @@ output_schema:
       description: Path to saved report file
 implementation:
   type: script
-  path: generate-report.sh
+  script: generate-report.sh
   runtime: bash
   timeout: 60
 annotations:

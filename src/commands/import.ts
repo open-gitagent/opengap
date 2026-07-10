@@ -28,7 +28,7 @@ function importFromClaude(sourcePath: string, targetDir: string): void {
     name: dirName.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
     version: '0.1.0',
     description: `Imported from Claude Code project: ${dirName}`,
-    model: { preferred: 'claude-sonnet-4-5-20250929' },
+    model: { preferred: 'anthropic:claude-sonnet-4-5-20250929' },
     skills: [] as string[],
     tools: [] as string[],
   };
@@ -280,8 +280,10 @@ function importFromCodex(sourcePath: string, targetDir: string): void {
 
   const dirName = basename(sourceDir);
 
-  // codex.json model format: "model-id" (no provider/ prefix, unlike opencode)
-  const rawModel = (config.model as string) || undefined;
+  // codex.json model format: "model-id" (no provider prefix) — Codex defaults to openai,
+  // so emit canonical "openai:model-id".
+  const rawModelId = (config.model as string) || undefined;
+  const rawModel = rawModelId ? `openai:${rawModelId}` : undefined;
   const agentYaml: Record<string, unknown> = {
     spec_version: '0.1.0',
     name: dirName.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
@@ -357,9 +359,9 @@ function importFromOpenCode(sourcePath: string, targetDir: string): void {
 
   const dirName = basename(sourceDir);
 
-  // Determine model from opencode.json (format: "provider/model-id")
+  // Determine model from opencode.json (format: "provider/model-id") → canonical "provider:model-id"
   const rawModel = (config.model as string) || undefined;
-  const model = rawModel?.includes('/') ? rawModel.split('/').slice(1).join('/') : rawModel;
+  const model = rawModel?.includes('/') ? rawModel.replace('/', ':') : rawModel;
   const agentYaml: Record<string, unknown> = {
     spec_version: '0.1.0',
     name: dirName.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
@@ -426,10 +428,15 @@ function importFromGemini(sourcePath: string, targetDir: string): void {
   const dirName = basename(sourceDir);
 
   // Determine model from settings.json (can be string or { id, provider } object)
+  // → canonical "provider:model-id"
   const rawModel = settings.model;
-  const model = typeof rawModel === 'object' && rawModel !== null
-    ? (rawModel as Record<string, string>).id
-    : rawModel as string | undefined;
+  let model: string | undefined;
+  if (typeof rawModel === 'object' && rawModel !== null) {
+    const r = rawModel as Record<string, string>;
+    model = r.provider && r.id ? `${r.provider}:${r.id}` : r.id;
+  } else {
+    model = rawModel as string | undefined;
+  }
   const agentYaml: Record<string, unknown> = {
     spec_version: '0.1.0',
     name: dirName.toLowerCase().replace(/[^a-z0-9-]/g, '-'),

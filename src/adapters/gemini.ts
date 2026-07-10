@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 import yaml from 'js-yaml';
 import { loadAgentManifest, loadFileIfExists } from '../utils/loader.js';
 import { loadAllSkills, getAllowedTools } from '../utils/skill-loader.js';
+import { parseModel } from '../utils/model.js';
 import { buildComplianceSection, buildMcpServersConfig } from './shared.js';
 
 /**
@@ -197,14 +198,11 @@ function buildSettings(
   const settings: Record<string, unknown> = {};
 
   // Model preference - Gemini CLI expects object format
+  // Canonical "provider:model" → { id: model, provider }
   if (manifest.model?.preferred) {
-    // Extract provider from model name or default to google
-    const modelName = manifest.model.preferred;
-    const provider = modelName.includes('claude') ? 'anthropic' : 
-                     modelName.includes('gpt') ? 'openai' : 'google';
-    
+    const { provider, modelId } = parseModel(manifest.model.preferred);
     settings.model = {
-      id: modelName,
+      id: modelId,
       provider: provider
     };
   }

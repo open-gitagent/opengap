@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 import yaml from 'js-yaml';
 import { loadAgentManifest, loadFileIfExists } from '../utils/loader.js';
 import { loadAllSkills, getAllowedTools } from '../utils/skill-loader.js';
+import { parseModel } from '../utils/model.js';
 import { buildMcpServersMarkdown } from './shared.js';
 
 /**
@@ -45,8 +46,9 @@ export function exportToNanobotString(dir: string): string {
 }
 
 function buildNanobotConfig(manifest: ReturnType<typeof loadAgentManifest>): object {
-  const model = mapModelName(manifest.model?.preferred ?? 'anthropic/claude-sonnet-4-5-20250929');
-  const provider = model.split('/')[0] ?? 'anthropic';
+  // Canonical "provider:model" → Nanobot "provider/model" form.
+  const { provider, modelId } = parseModel(manifest.model?.preferred ?? 'anthropic:claude-sonnet-4-5-20250929');
+  const model = `${provider}/${modelId}`;
 
   const config: Record<string, unknown> = {
     providers: {
@@ -62,23 +64,6 @@ function buildNanobotConfig(manifest: ReturnType<typeof loadAgentManifest>): obj
   };
 
   return config;
-}
-
-/**
- * Map gitagent model names to Nanobot provider/model format.
- * Nanobot uses "anthropic/claude-opus-4-5" style names (via OpenRouter or direct).
- */
-function mapModelName(model: string): string {
-  if (model.includes('/')) {
-    return model;
-  }
-  if (model.startsWith('claude-')) {
-    return `anthropic/${model}`;
-  }
-  if (model.startsWith('gpt-') || model.startsWith('o1') || model.startsWith('o3')) {
-    return `openai/${model}`;
-  }
-  return model;
 }
 
 function buildSystemPrompt(agentDir: string, manifest: ReturnType<typeof loadAgentManifest>): string {

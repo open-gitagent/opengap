@@ -5,9 +5,9 @@ description: Financial compliance analysis agent for FINRA and Federal Reserve r
 author: gitagent-examples
 license: proprietary
 model:
-  preferred: claude-opus-4-6
+  preferred: anthropic:claude-opus-4-6
   fallback:
-    - claude-sonnet-4-5-20250929
+    - anthropic:claude-sonnet-4-5-20250929
   constraints:
     temperature: 0.1
     max_tokens: 8192

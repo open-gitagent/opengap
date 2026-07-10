@@ -27,7 +27,7 @@ output_schema:
           exceeds_threshold: { type: boolean }
 implementation:
   type: script
-  path: complexity-analysis.sh
+  script: complexity-analysis.sh
   runtime: bash
   timeout: 30
 annotations:

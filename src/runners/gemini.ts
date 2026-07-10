@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { exportToGemini } from '../adapters/gemini.js';
 import { AgentManifest } from '../utils/loader.js';
+import { parseModel } from '../utils/model.js';
 import { error, info } from '../utils/format.js';
 
 export interface GeminiRunOptions {
@@ -61,7 +62,7 @@ export function runWithGemini(agentDir: string, manifest: AgentManifest, options
 
   // Model override (if specified in manifest and not in settings)
   if (manifest.model?.preferred && !exp.settings.model) {
-    args.push('--model', manifest.model.preferred);
+    args.push('--model', parseModel(manifest.model.preferred).modelId);
   }
 
   // Approval mode from compliance (if not already in settings)

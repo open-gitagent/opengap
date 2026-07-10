@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 import yaml from 'js-yaml';
 import { loadAgentManifest, loadFileIfExists } from '../utils/loader.js';
 import { loadAllSkills, getAllowedTools } from '../utils/skill-loader.js';
+import { parseModel } from '../utils/model.js';
 import { buildComplianceSection } from './shared.js';
 
 /**
@@ -168,7 +169,7 @@ function buildConfig(
   config.prompt = 'file://./prompt.md';
 
   if (manifest.model?.preferred) {
-    config.model = manifest.model.preferred;
+    config.model = parseModel(manifest.model.preferred).modelId;
   }
 
   // Collect tools from skills and tool definitions

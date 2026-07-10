@@ -1,6 +1,7 @@
 import { resolve, join } from 'node:path';
 import { loadAgentManifest, loadFileIfExists } from '../utils/loader.js';
 import { loadAllSkills, getAllowedTools } from '../utils/skill-loader.js';
+import { parseModel } from '../utils/model.js';
 import { buildMcpServersMarkdown } from './shared.js';
 
 export interface LyzrAgentPayload {
@@ -30,17 +31,14 @@ const PROVIDER_CREDENTIAL_MAP: Record<string, string> = {
 function mapModelToLyzrProvider(model?: string): { provider_id: string; model: string } {
   if (!model) return { provider_id: 'OpenAI', model: 'gpt-4.1' };
 
-  if (model.startsWith('claude')) {
-    return { provider_id: 'Anthropic', model };
-  }
-  if (model.startsWith('gpt') || model.startsWith('o1') || model.startsWith('o3')) {
-    return { provider_id: 'OpenAI', model };
-  }
-  if (model.startsWith('gemini')) {
-    return { provider_id: 'Google', model };
-  }
-  // Default to OpenAI
-  return { provider_id: 'OpenAI', model };
+  // Canonical "provider:model" → Lyzr's capitalized provider_id + bare model id.
+  const { provider, modelId } = parseModel(model);
+  const providerMap: Record<string, string> = {
+    anthropic: 'Anthropic',
+    openai: 'OpenAI',
+    google: 'Google',
+  };
+  return { provider_id: providerMap[provider] ?? 'OpenAI', model: modelId };
 }
 
 /**

@@ -7,6 +7,7 @@ const Ajv = _Ajv as unknown as typeof _Ajv.default;
 const addFormats = _addFormats as unknown as typeof _addFormats.default;
 import { loadAgentManifest } from '../utils/loader.js';
 import { loadSchema } from '../utils/schemas.js';
+import { parseModel, isKnownProvider } from '../utils/model.js';
 import { parseSkillMd } from '../utils/skill-loader.js';
 import { success, error, warn, info, heading, divider } from '../utils/format.js';
 
@@ -46,6 +47,22 @@ function validateAgentYaml(dir: string): ValidationResult {
     if (!schemaResult.valid) {
       result.valid = false;
       result.errors.push(...schemaResult.errors.map(e => `agent.yaml ${e}`));
+    }
+
+    // Check model strings are canonical "provider:model" with a known provider
+    const models = [manifest.model?.preferred, ...(manifest.model?.fallback ?? [])].filter(
+      (m): m is string => typeof m === 'string',
+    );
+    for (const m of models) {
+      try {
+        const { provider } = parseModel(m);
+        if (!isKnownProvider(provider)) {
+          result.warnings.push(`Model "${m}" uses an unknown provider "${provider}"`);
+        }
+      } catch (e) {
+        result.valid = false;
+        result.errors.push(`agent.yaml model: ${(e as Error).message}`);
+      }
     }
 
     // Check referenced skills exist

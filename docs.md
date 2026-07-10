@@ -179,9 +179,9 @@ author: gitagent-examples
 license: MIT
 
 model:
-  preferred: claude-sonnet-4-5-20250929
+  preferred: anthropic:claude-sonnet-4-5-20250929
   fallback:
-    - claude-haiku-4-5-20251001
+    - anthropic:claude-haiku-4-5-20251001
   constraints:
     temperature: 0.2
     max_tokens: 4096
@@ -213,9 +213,9 @@ author: Acme Corp
 license: MIT
 
 model:
-  preferred: claude-opus-4-6
+  preferred: anthropic:claude-opus-4-6
   fallback:
-    - claude-sonnet-4-5-20250929
+    - anthropic:claude-sonnet-4-5-20250929
   constraints:
     temperature: 0.2
     max_tokens: 4096

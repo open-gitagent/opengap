@@ -2,6 +2,7 @@ import { resolve } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AgentManifest, loadAgentManifest, agentDirExists } from '../utils/loader.js';
+import { parseModel } from '../utils/model.js';
 import { resolveRepo, ResolveRepoOptions } from '../utils/git-cache.js';
 import { exportToSystemPrompt } from '../adapters/system-prompt.js';
 import { runWithClaude } from './claude.js';
@@ -152,16 +153,21 @@ function detectAdapter(agentDir: string, manifest: AgentManifest): string {
     }
   }
 
-  // 2. Model name hints
+  // 2. Model name hints (canonical "provider:model" → provider implies adapter)
   const model = manifest.model?.preferred;
-  if (model) {
-    if (model.startsWith('claude')) {
+  if (model && model.includes(':')) {
+    const { provider } = parseModel(model);
+    if (provider === 'anthropic') {
       info('Auto-detected adapter: claude (from model preference)');
       return 'claude';
     }
-    if (model.startsWith('gpt') || model.startsWith('o1') || model.startsWith('o3')) {
+    if (provider === 'openai') {
       info('Auto-detected adapter: openai (from model preference)');
       return 'openai';
+    }
+    if (provider === 'google') {
+      info('Auto-detected adapter: gemini (from model preference)');
+      return 'gemini';
     }
   }
 

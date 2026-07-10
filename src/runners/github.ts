@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { exportToSystemPrompt } from '../adapters/system-prompt.js';
 import { AgentManifest } from '../utils/loader.js';
+import { parseModel } from '../utils/model.js';
 import { error, info, success, label, heading, divider } from '../utils/format.js';
 import { ensureGitHubAuth } from '../utils/auth-provision.js';
 
@@ -26,36 +27,10 @@ export interface GitHubRunOptions {
  * prefix the most likely vendor namespace.
  */
 function resolveGitHubModel(model?: string): string {
+  // Canonical "provider:model" → GitHub Models "provider/model" namespace.
   if (!model) return DEFAULT_MODEL;
-
-  // Already namespaced (e.g. "openai/gpt-4.1")
-  if (model.includes('/')) return model;
-
-  // Map common model prefixes to GitHub Models namespaces
-  if (model.startsWith('gpt') || model.startsWith('o1') || model.startsWith('o3') || model.startsWith('o4')) {
-    return `openai/${model}`;
-  }
-  if (model.startsWith('claude')) {
-    return `anthropic/${model}`;
-  }
-  if (model.startsWith('llama') || model.startsWith('Llama')) {
-    return `meta/${model}`;
-  }
-  if (model.startsWith('mistral') || model.startsWith('Mistral')) {
-    return `mistralai/${model}`;
-  }
-  if (model.startsWith('gemini')) {
-    return `google/${model}`;
-  }
-  if (model.startsWith('deepseek') || model.startsWith('DeepSeek')) {
-    return `deepseek/${model}`;
-  }
-  if (model.startsWith('cohere')) {
-    return `cohere/${model}`;
-  }
-
-  // Fall back — let GitHub Models resolve it
-  return model;
+  const { provider, modelId } = parseModel(model);
+  return `${provider}/${modelId}`;
 }
 
 /**

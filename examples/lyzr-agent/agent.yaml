@@ -5,9 +5,9 @@ description: AI research assistant that summarizes topics, answers questions, an
 author: gitagent-examples
 license: MIT
 model:
-  preferred: gpt-4.1
+  preferred: openai:gpt-4.1
   fallback:
-    - gpt-4.1-mini
+    - openai:gpt-4.1-mini
   constraints:
     temperature: 0.3
     max_tokens: 4096

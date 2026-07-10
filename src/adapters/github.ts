@@ -1,5 +1,6 @@
 import { resolve, join } from 'node:path';
 import { loadAgentManifest } from '../utils/loader.js';
+import { parseModel } from '../utils/model.js';
 import { exportToSystemPrompt } from './system-prompt.js';
 
 export interface GitHubModelsPayload {
@@ -14,19 +15,10 @@ export interface GitHubModelsPayload {
  * Map an agent.yaml model to a GitHub Models model ID (vendor/model).
  */
 function resolveModel(model?: string): string {
+  // Canonical "provider:model" → GitHub Models "provider/model" form.
   if (!model) return 'openai/gpt-4.1';
-  if (model.includes('/')) return model;
-
-  if (model.startsWith('gpt') || model.startsWith('o1') || model.startsWith('o3') || model.startsWith('o4')) {
-    return `openai/${model}`;
-  }
-  if (model.startsWith('claude')) return `anthropic/${model}`;
-  if (model.startsWith('llama') || model.startsWith('Llama')) return `meta/${model}`;
-  if (model.startsWith('mistral') || model.startsWith('Mistral')) return `mistralai/${model}`;
-  if (model.startsWith('gemini')) return `google/${model}`;
-  if (model.startsWith('deepseek') || model.startsWith('DeepSeek')) return `deepseek/${model}`;
-
-  return model;
+  const { provider, modelId } = parseModel(model);
+  return `${provider}/${modelId}`;
 }
 
 /**

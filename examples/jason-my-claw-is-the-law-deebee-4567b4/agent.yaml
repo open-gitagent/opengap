@@ -11,9 +11,9 @@ author: bengii
 license: MIT
 
 model:
-  preferred: ollama/qwen3-coder:latest
+  preferred: ollama:qwen3-coder:latest
   fallback:
-    - cerebras/qwen-3-235b-a22b-instruct-2507
+    - cerebras:qwen-3-235b-a22b-instruct-2507
   constraints:
     temperature: 0.3
     max_tokens: 4096

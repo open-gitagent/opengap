@@ -5,9 +5,9 @@ description: "LLM-maintained personal wiki — a persistent, compounding knowled
 author: gitagent-examples
 license: MIT
 model:
-  preferred: claude-sonnet-4-5-20250929
+  preferred: anthropic:claude-sonnet-4-5-20250929
   fallback:
-    - claude-haiku-4-5-20251001
+    - anthropic:claude-haiku-4-5-20251001
 skills:
   - wiki-ingest
   - wiki-query

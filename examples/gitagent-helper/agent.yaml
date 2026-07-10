@@ -5,9 +5,9 @@ description: Your AI assistant for building, running, and managing git-native AI
 author: gitagent
 license: MIT
 model:
-  preferred: claude-sonnet-4-5-20250929
+  preferred: anthropic:claude-sonnet-4-5-20250929
   fallback:
-    - claude-haiku-4-5-20251001
+    - anthropic:claude-haiku-4-5-20251001
   constraints:
     temperature: 0.2
     max_tokens: 8192

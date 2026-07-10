@@ -40,12 +40,13 @@
       "properties": {
         "preferred": {
           "type": "string",
-          "description": "Primary model ID (e.g., claude-opus-4-6, gpt-4o)"
+          "pattern": "^[a-z0-9-]+:.+$",
+          "description": "Primary model in canonical 'provider:model' form (e.g., anthropic:claude-opus-4-8, openai:gpt-4o)"
         },
         "fallback": {
           "type": "array",
-          "items": { "type": "string" },
-          "description": "Fallback model IDs in priority order"
+          "items": { "type": "string", "pattern": "^[a-z0-9-]+:.+$" },
+          "description": "Fallback models in canonical 'provider:model' form, priority order"
         },
         "constraints": {
           "type": "object",

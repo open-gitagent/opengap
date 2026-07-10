@@ -7,9 +7,9 @@ description: >
   structured TOC, and verified sources using a coordinated orchestrator-planner-researcher hierarchy.
 
 model:
-  preferred: openai/gpt-oss-120b
+  preferred: openai:gpt-oss-120b
   fallback:
-    - nvidia/nemotron-3-super-120b-a12b
+    - nvidia:nemotron-3-super-120b-a12b
   constraints:
     temperature: 0.2
     max_tokens: 16384

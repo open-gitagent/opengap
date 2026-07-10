@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 import yaml from 'js-yaml';
 import { loadAgentManifest, loadFileIfExists } from '../utils/loader.js';
 import { loadAllSkills, getAllowedTools } from '../utils/skill-loader.js';
+import { parseModel } from '../utils/model.js';
 import { buildMcpServersMarkdown } from './shared.js';
 
 /**
@@ -112,7 +113,7 @@ export function exportToOpenClawString(dir: string): string {
 }
 
 function buildOpenClawConfig(agentDir: string, manifest: ReturnType<typeof loadAgentManifest>): object {
-  const mainModel = mapModelName(manifest.model?.preferred ?? 'anthropic/claude-sonnet-4-5-20250929');
+  const mainModel = mapModelName(manifest.model?.preferred ?? 'anthropic:claude-sonnet-4-5-20250929');
 
   // Check for sub-agents → multi-agent config
   if (manifest.agents && Object.keys(manifest.agents).length > 0) {
@@ -174,20 +175,12 @@ function buildAgentConfig(
 }
 
 /**
- * Map gitagent model names to OpenClaw provider/model format.
+ * Map a canonical "provider:model" name to OpenClaw "provider/model" format.
  * OpenClaw uses "anthropic/claude-opus-4-6" style names.
  */
 function mapModelName(model: string): string {
-  if (model.startsWith('anthropic/') || model.startsWith('openai/')) {
-    return model;
-  }
-  if (model.startsWith('claude-')) {
-    return `anthropic/${model}`;
-  }
-  if (model.startsWith('gpt-') || model.startsWith('o1') || model.startsWith('o3')) {
-    return `openai/${model}`;
-  }
-  return model;
+  const { provider, modelId } = parseModel(model);
+  return `${provider}/${modelId}`;
 }
 
 function buildAgentsMd(agentDir: string, manifest: ReturnType<typeof loadAgentManifest>): string {

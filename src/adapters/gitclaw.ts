@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 import yaml from 'js-yaml';
 import { loadAgentManifest, loadFileIfExists } from '../utils/loader.js';
 import { loadAllSkills } from '../utils/skill-loader.js';
+import { parseModel } from '../utils/model.js';
 
 /**
  * Export a gitagent to gitclaw format.
@@ -152,26 +153,14 @@ function buildAgentYaml(
 }
 
 /**
- * Convert gitagent model name to gitclaw "provider:model-id" format.
- * gitagent: "claude-sonnet-4-5" or "anthropic/claude-sonnet-4-5"
- * gitclaw:  "anthropic:claude-sonnet-4-5"
+ * Normalize the canonical "provider:model" source into gitclaw "provider:model-id" form.
+ * Both use the same colon convention, so this validates and re-emits the value.
+ * source: "anthropic:claude-sonnet-4-5"
+ * gitclaw: "anthropic:claude-sonnet-4-5"
  */
 function toGitclawModel(model: string): string {
-  // Already in provider:model format
-  if (model.includes(':') && !model.includes('://')) return model;
-
-  // provider/model → provider:model
-  if (model.includes('/')) {
-    return model.replace('/', ':');
-  }
-
-  // Infer provider from model name
-  if (model.startsWith('claude') || model.includes('anthropic')) return `anthropic:${model}`;
-  if (model.startsWith('gpt') || model.startsWith('o1') || model.startsWith('o3') || model.startsWith('o4')) return `openai:${model}`;
-  if (model.startsWith('gemini')) return `google:${model}`;
-  if (model.startsWith('deepseek')) return `deepseek:${model}`;
-  if (model.startsWith('llama') || model.startsWith('mistral')) return `ollama:${model}`;
-  return `openai:${model}`;
+  const { provider, modelId } = parseModel(model);
+  return `${provider}:${modelId}`;
 }
 
 function collectToolNames(agentDir: string): string[] {

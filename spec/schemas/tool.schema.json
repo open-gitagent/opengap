@@ -62,9 +62,13 @@
           "enum": ["script", "mcp_server", "http"],
           "description": "'script': local executable. 'mcp_server': MCP server tool. 'http': REST API endpoint."
         },
+        "script": {
+          "type": "string",
+          "description": "Path to implementation script (relative to tools/). Preferred field for type: script."
+        },
         "path": {
           "type": "string",
-          "description": "Path to implementation script (relative to tools/)"
+          "description": "DEPRECATED alias for 'script'. Use 'script' instead — some runtimes (e.g. gitagent) only read 'script'."
         },
         "runtime": {
           "type": "string",
@@ -96,7 +100,13 @@
       "allOf": [
         {
           "if": { "properties": { "type": { "const": "script" } } },
-          "then": { "required": ["path", "runtime"] }
+          "then": {
+            "required": ["runtime"],
+            "anyOf": [
+              { "required": ["script"] },
+              { "required": ["path"] }
+            ]
+          }
         },
         {
           "if": { "properties": { "type": { "const": "http" } } },
