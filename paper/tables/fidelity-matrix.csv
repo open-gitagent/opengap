@@ -13,4 +13,5 @@ nanobot,F,F,P,F,F,P,P,-,-
 copilot,F,F,P,P,P,-,-,-,-
 github,F,F,P,P,F,-,-,-,P
 gitclaw,F,F,F,F,F,F,F,F,F
+langchain,F,F,F,F,P,-,P,F,P
 system-prompt,F,F,P,P,-,-,-,-,-
