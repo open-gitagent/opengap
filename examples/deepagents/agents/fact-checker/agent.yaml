@@ -1,0 +1,4 @@
+spec_version: "0.1.0"
+name: fact-checker
+version: 1.0.0
+description: Verifies factual claims against authoritative sources

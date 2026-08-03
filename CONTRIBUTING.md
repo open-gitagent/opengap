@@ -133,6 +133,12 @@ Add your adapter to the switch statement that dispatches on `-a <adapter>`.
 
 If your framework has a config file format, add an exporter in `commands/export.ts` or `src/adapters/`.
 
+If your example directory commits an `expected_output.py` (or similar) snapshot, regenerate it whenever you change the adapter so it does not drift:
+
+```bash
+opengap export --dir examples/<name> --format <name> --output examples/<name>/expected_output.py
+```
+
 ### 4. Document what's lossy
 
 Every adapter loses something — that's expected. Please document it clearly:

@@ -1,6 +1,10 @@
 node_modules/
 dist/
 .gitagent/
+# Transient modules written next to an agent by the python-backed runners
+# (deepagents). They live beside the agent so `Path(__file__).parent / "skills"`
+# resolves, and are unlinked on exit — this only covers a crash mid-run.
+.gitagent-*.py
 *.tsbuildinfo
 .env
 .DS_Store

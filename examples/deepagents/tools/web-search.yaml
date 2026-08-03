@@ -1,0 +1,10 @@
+name: web-search
+description: Search the public web for a query
+input_schema:
+  type: object
+  properties:
+    query:
+      type: string
+      description: The search query
+  required:
+    - query

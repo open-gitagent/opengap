@@ -371,6 +371,7 @@ Adapters are used by both `export` and `run`. Available adapters:
 | `codex` | OpenAI Codex CLI instructions (export only) |
 | `kiro` | Kiro agent format (export only) |
 | `gitclaw` | GitClaw agent format |
+| `deepagents` | LangChain DeepAgents harness (`create_deep_agent(...)`) — skills, tools, sub-agents |
 
 ```bash
 # Export to system prompt

@@ -1,0 +1,16 @@
+spec_version: "0.1.0"
+name: research-assistant
+version: 1.0.0
+description: Research assistant with a fact-checker sub-agent
+author: gitagent-examples
+license: MIT
+model:
+  preferred: anthropic:claude-sonnet-4-5
+skills:
+  - web-research
+  - summarize
+tools:
+  - web-search
+agents:
+  fact-checker:
+    description: Verifies factual claims against authoritative sources
