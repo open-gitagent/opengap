@@ -555,6 +555,52 @@ opengap audit -d ./examples/full
 
 ---
 
+### diff
+
+Show a semantic diff between two agent versions — what changed in `agent.yaml`, `SOUL.md`, `RULES.md`, `DUTIES.md`, skills, tools, workflows, compliance, hooks, and memory, instead of a raw text diff.
+
+```bash
+opengap diff [from] [to] [options]
+```
+
+| Argument/Option | Default | Description |
+|------------------|---------|-------------|
+| `from` | `HEAD` | Git ref or directory to compare from |
+| `to` | working directory | Git ref or directory to compare to |
+| `-d, --dir <dir>` | `.` | Repository/agent directory used to resolve git refs |
+| `--json` | `false` | Output the structured diff as JSON instead of formatted text |
+
+Each side of the comparison can be a git ref (commit, branch, or tag — resolved against `--dir` via `git archive`) or a path to a standalone agent directory. Passing a single `from..to` argument is also accepted as shorthand for two separate refs.
+
+**What gets reported:**
+
+- **Identity (SOUL.md)** — presence + added/removed line counts (no NLP, just a size signal)
+- **Manifest (agent.yaml)** — every changed field (name, version, model, runtime, dependencies, mcp_servers, tags, metadata, ...), reported as `field.path: old → new`
+- **Rules / Duties (RULES.md / DUTIES.md)** — added/removed line counts, plus segregation-of-duties conflict pairs added or removed
+- **Skills / Tools / Workflows** — added, removed, and content-modified entries
+- **Compliance** — `risk_tier` changes (flagged with `⚠ tier escalation` when the tier increases), framework additions/removals, and every other changed compliance field
+- **Hooks** — added/removed hook entries, flagged with `⚠ enforcement added` when a new hook has `fail_open: false`
+- **Memory** — which files under `memory/` changed, flagged `⚠ review needed`
+
+```bash
+# What changed since the last commit
+opengap diff
+
+# Compare two tagged releases
+opengap diff v1.0.0 v1.1.0
+
+# Compare two branches
+opengap diff main..feature/new-skill
+
+# Compare two standalone agent directories
+opengap diff ./agent-v1 ./agent-v2
+
+# Machine-readable output for CI/PR bots
+opengap diff v1.0.0 v1.1.0 --json
+```
+
+---
+
 ### skills
 
 Manage agent skills — search registries, install, list, and inspect.

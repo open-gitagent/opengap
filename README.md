@@ -310,6 +310,7 @@ Both `opengap` and `gitagent` refer to the same binary — use whichever you pre
 |---------|-------------|
 | `opengap init [--template]` | Scaffold new agent (`minimal`, `standard`, `full`, `llm-wiki`) |
 | `opengap validate [--compliance]` | Validate against spec and regulatory requirements |
+| `opengap diff [from] [to]` | Semantic diff between two agent versions (git refs or directories) |
 | `opengap info` | Display agent summary |
 | `opengap export --format <fmt>` | Export to other formats (see adapters below) |
 | `opengap import --from <fmt> <path>` | Import (`claude`, `cursor`, `crewai`, `opencode`) |
