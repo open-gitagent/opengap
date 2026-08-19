@@ -415,7 +415,7 @@ JSON Schemas for validation at `spec/schemas/`.
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=open-gitagent/opengap&type=Date)](https://star-history.com/#open-gitagent/opengap&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=open-gitagent/opengap&type=Date)](https://star-history.dera.page/#open-gitagent/opengap&Date)
 
 ## Built with gitagent?
 
