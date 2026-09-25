@@ -100,7 +100,7 @@ export async function runWithGit(
         runWithOpenAI(agentDir, manifest, { workspace: options.workspace });
         break;
       case 'crewai':
-        runWithCrewAI(agentDir, manifest, { workspace: options.workspace });
+        runWithCrewAI(agentDir, manifest, { prompt: options.prompt, workspace: options.workspace });
         break;
       case 'openclaw':
         runWithOpenClaw(agentDir, manifest, { prompt: options.prompt, workspace: options.workspace });
