@@ -10,12 +10,13 @@ import { loadSchema } from '../utils/schemas.js';
 import { parseSkillMd } from '../utils/skill-loader.js';
 import { success, error, warn, info, heading, divider } from '../utils/format.js';
 
-interface ValidateOptions {
+export interface ValidateOptions {
   dir: string;
   compliance: boolean;
+  passport: boolean;
 }
 
-interface ValidationResult {
+export interface ValidationResult {
   valid: boolean;
   errors: string[];
   warnings: string[];
@@ -112,6 +113,178 @@ function validateSoulMd(dir: string): ValidationResult {
   }
 
   return result;
+}
+
+export function validateExplainabilityMd(dir: string): ValidationResult {
+  const result: ValidationResult = { valid: true, errors: [], warnings: [] };
+  const explainPath = join(dir, 'EXPLAINABILITY.md');
+
+  if (!existsSync(explainPath)) {
+    result.valid = false;
+    result.errors.push('EXPLAINABILITY.md is required for Passport Checkpoint 2 but not found');
+    return result;
+  }
+
+  const raw = readFileSync(explainPath, 'utf-8').trim();
+  if (raw.length === 0) {
+    result.valid = false;
+    result.errors.push('EXPLAINABILITY.md is empty — must contain structured explanation sections');
+    return result;
+  }
+
+  const lines = raw.split('\n');
+  const sections: Array<{ heading: string; body: string }> = [];
+  let currentHeading = '';
+  let currentBody: string[] = [];
+
+  for (const line of lines) {
+    const match = line.match(/^#{1,4}\s+(.+)$/);
+    if (match) {
+      if (currentHeading) {
+        sections.push({ heading: currentHeading, body: currentBody.join('\n').trim() });
+      }
+      currentHeading = match[1].trim();
+      currentBody = [];
+    } else {
+      currentBody.push(line);
+    }
+  }
+  if (currentHeading) {
+    sections.push({ heading: currentHeading, body: currentBody.join('\n').trim() });
+  }
+
+  if (sections.length === 0) {
+    result.valid = false;
+    result.errors.push('EXPLAINABILITY.md contains no markdown headings — must organize topics under headings');
+    return result;
+  }
+
+  const countSentences = (text: string): number => {
+    const clean = text
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/\|.*\|/g, '')
+      .replace(/^#.*$/gm, '')
+      .trim();
+    if (!clean) return 0;
+    const sentences = clean.split(/[.!?]+(?:\s+|$)/).filter(s => s.trim().length > 5);
+    return sentences.length;
+  };
+
+  // 1. Decision / Reasoning logic check (Checkpoint 2)
+  const decisionSection = sections.find(s => /decision|reasoning|how it decides/i.test(s.heading));
+  if (!decisionSection) {
+    result.valid = false;
+    result.errors.push(
+      'EXPLAINABILITY.md missing required Decision/Reasoning section (heading must include "decision", "reasoning", or "how it decides")'
+    );
+  } else {
+    const sentences = countSentences(decisionSection.body);
+    if (sentences < 2) {
+      result.valid = false;
+      result.errors.push(
+        `EXPLAINABILITY.md section "${decisionSection.heading}" must contain at least 2 sentences explaining decision logic (found ${sentences})`
+      );
+    }
+  }
+
+  // 2. Data Sources / Inputs check (Checkpoint 2)
+  const inputSection = sections.find(s => /data source|input|data used/i.test(s.heading));
+  if (!inputSection) {
+    result.valid = false;
+    result.errors.push(
+      'EXPLAINABILITY.md missing required Data Sources/Inputs section (heading must include "data source", "input", or "data used")'
+    );
+  } else {
+    const sentences = countSentences(inputSection.body);
+    if (sentences < 2) {
+      result.valid = false;
+      result.errors.push(
+        `EXPLAINABILITY.md section "${inputSection.heading}" must contain at least 2 sentences describing data sources or inputs (found ${sentences})`
+      );
+    }
+  }
+
+  // 3. Limitations / Constraints check (Checkpoint 2)
+  const limitationSection = sections.find(s => /limitation|constraint|known issue/i.test(s.heading));
+  if (!limitationSection) {
+    result.valid = false;
+    result.errors.push(
+      'EXPLAINABILITY.md missing required Limitations section (heading must include "limitation", "constraint", or "known issue")'
+    );
+  } else {
+    const sentences = countSentences(limitationSection.body);
+    if (sentences < 2) {
+      result.valid = false;
+      result.errors.push(
+        `EXPLAINABILITY.md section "${limitationSection.heading}" must contain at least 2 sentences detailing limitations or failure modes (found ${sentences})`
+      );
+    }
+  }
+
+  return result;
+}
+
+export function validateDutiesMd(dir: string): ValidationResult {
+  const result: ValidationResult = { valid: true, errors: [], warnings: [] };
+  const dutiesPath = join(dir, 'DUTIES.md');
+  const agentsPath = join(dir, 'AGENTS.md');
+
+  const filesToCheck = [
+    { path: dutiesPath, name: 'DUTIES.md' },
+    { path: agentsPath, name: 'AGENTS.md' }
+  ].filter(f => existsSync(f.path));
+
+  if (filesToCheck.length === 0) {
+    result.warnings.push('DUTIES.md not found — recommended for multi-agent segregation of duties (Passport Checkpoint 1)');
+    return result;
+  }
+
+  for (const { path, name } of filesToCheck) {
+    const content = readFileSync(path, 'utf-8');
+    const lines = content.split('\n');
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (/\bmaker\b/i.test(line) && /\b(checker|reviewer)\b/i.test(line)) {
+        // Exclude legitimate architectural phrases
+        if (/boundary|separation|segregation|distinct|separate|differ|between|versus|\bvs\b/i.test(line)) {
+          continue;
+        }
+
+        // Flag actual role combinations or conflations
+        if (
+          /[:=\-–—|].*(?:assign|hold|act|role|persona).*\bmaker\b.*(?:and|&|\/|\+).*\b(?:checker|reviewer)\b/i.test(line) ||
+          /[:=\-–—|].*(?:assign|hold|act|role|persona).*\b(?:checker|reviewer)\b.*(?:and|&|\/|\+).*\bmaker\b/i.test(line) ||
+          /\b(same|single)\s+(?:agent|role|entity|individual|person|user).*\b(?:maker\b.*\b(?:checker|reviewer)|(?:checker|reviewer)\b.*\bmaker)\b/i.test(line) ||
+          /\b(?:maker\s*(?:and|&|\/|\+)\s*(?:checker|reviewer)|(?:checker|reviewer)\s*(?:and|&|\/|\+)\s*maker)\s*(?:role|agent|persona|responsibility)\b/i.test(line)
+        ) {
+          result.valid = false;
+          result.errors.push(
+            `${name} (line ${i + 1}): Maker and Checker cannot be assigned to the same entity or role (violates Separation of Duties)`
+          );
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
+export function validatePassport(dir: string): {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  checkpoint1: ValidationResult;
+  checkpoint2: ValidationResult;
+} {
+  const cp1 = validateDutiesMd(dir);
+  const cp2 = validateExplainabilityMd(dir);
+
+  const valid = cp1.valid && cp2.valid;
+  const errors = [...cp1.errors, ...cp2.errors];
+  const warnings = [...cp1.warnings, ...cp2.warnings];
+
+  return { valid, errors, warnings, checkpoint1: cp1, checkpoint2: cp2 };
 }
 
 function validateCompliance(dir: string): ValidationResult {
@@ -477,6 +650,7 @@ export const validateCommand = new Command('validate')
   .description('Validate a gitagent repository against the specification')
   .option('-d, --dir <dir>', 'Agent directory', '.')
   .option('-c, --compliance', 'Include regulatory compliance validation', false)
+  .option('-p, --passport', 'Validate against GitAgent Passport requirements (Checkpoints 1 & 2)', false)
   .action(async (options: ValidateOptions) => {
     const dir = resolve(options.dir);
     heading('Validating gitagent');
@@ -601,6 +775,40 @@ export const validateCommand = new Command('validate')
       totalWarnings += skillsResult.warnings.length;
     } else if (existsSync(join(dir, 'skills'))) {
       success('skills/ — valid');
+    }
+
+    // GitAgent Passport Preflight Validation (Checkpoints 1 & 2)
+    if (options.passport) {
+      divider();
+      heading('GitAgent Passport Preflight Validation');
+
+      const passportResult = validatePassport(dir);
+      
+      // Checkpoint 1: DUTIES & Separation of Duties
+      if (passportResult.checkpoint1.valid && passportResult.checkpoint1.errors.length === 0) {
+        success('Checkpoint 1 (DUTIES / Separation of Duties) — valid');
+      } else if (!passportResult.checkpoint1.valid) {
+        error('Checkpoint 1 (DUTIES / Separation of Duties) — invalid');
+        passportResult.checkpoint1.errors.forEach(e => error(`  ${e}`));
+        allValid = false;
+      }
+      passportResult.checkpoint1.warnings.forEach(w => warn(`  ${w}`));
+      totalErrors += passportResult.checkpoint1.errors.length;
+      totalWarnings += passportResult.checkpoint1.warnings.length;
+
+      // Checkpoint 2: EXPLAINABILITY.md Transparency
+      if (passportResult.checkpoint2.valid && passportResult.checkpoint2.errors.length === 0) {
+        success('Checkpoint 2 (EXPLAINABILITY / Transparency) — valid');
+      } else if (!passportResult.checkpoint2.valid) {
+        error('Checkpoint 2 (EXPLAINABILITY / Transparency) — invalid');
+        passportResult.checkpoint2.errors.forEach(e => error(`  ${e}`));
+        allValid = false;
+      }
+      passportResult.checkpoint2.warnings.forEach(w => warn(`  ${w}`));
+      totalErrors += passportResult.checkpoint2.errors.length;
+      totalWarnings += passportResult.checkpoint2.warnings.length;
+    } else if (existsSync(join(dir, 'EXPLAINABILITY.md')) || existsSync(join(dir, 'DUTIES.md'))) {
+      info('Tip: Run with --passport (-p) to verify GitAgent Passport Checkpoints 1 & 2 compliance.');
     }
 
     // Compliance validation
