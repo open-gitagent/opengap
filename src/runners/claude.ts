@@ -179,30 +179,33 @@ function collectAllowedTools(agentDir: string): string[] {
 
 /**
  * Build --agents JSON config from agents/ directory sub-agents.
+ * https://code.claude.com/docs/en/sub-agents
  */
-function buildSubagentConfig(agentDir: string, manifest: AgentManifest): object[] | null {
+function buildSubagentConfig(
+  agentDir: string,
+  manifest: AgentManifest,
+): Record<string, { description: string; prompt: string }> | null {
   if (!manifest.agents) return null;
 
-  const agents: object[] = [];
+  const agents: Record<string, { description: string; prompt: string }> = {};
   for (const [name, config] of Object.entries(manifest.agents)) {
     const subDir = join(agentDir, 'agents', name);
-    let instructions = config.description ?? '';
+    let prompt = config.description ?? '';
 
     // Load sub-agent's SOUL.md if it exists
     const soulPath = join(subDir, 'SOUL.md');
     if (existsSync(soulPath)) {
-      instructions += '\n\n' + readFileSync(soulPath, 'utf-8');
+      prompt += '\n\n' + readFileSync(soulPath, 'utf-8');
     }
 
-    agents.push({
-      name,
-      description: config.description ?? name,
-      instructions,
-      ...(config.delegation?.triggers ? { triggers: config.delegation.triggers } : {}),
-    });
+    const triggers = config.delegation?.triggers;
+    const description =
+      (config.description ?? name) + (triggers?.length ? ` Use when: ${triggers.join(', ')}.` : '');
+
+    agents[name] = { description, prompt: prompt.trim() || description };
   }
 
-  return agents.length > 0 ? agents : null;
+  return Object.keys(agents).length > 0 ? agents : null;
 }
 
 /**
