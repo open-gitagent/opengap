@@ -130,7 +130,7 @@ lyzrCommand
   .option('--refresh', 'Force re-clone (pull latest)', false)
   .option('-p, --prompt <message>', 'Message to send to the agent')
   .option('--api-key <key>', 'Lyzr API key (or set LYZR_API_KEY)')
-  .option('--user-id <id>', 'User ID for chat session')
+  .option('--user-id <id>', 'User ID for chat session (default: $LYZR_USER_ID, else derived from a hash of the API key)')
   .action(async (options: {
     repo?: string;
     dir?: string;

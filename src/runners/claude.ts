@@ -8,6 +8,7 @@ import { exportToSystemPrompt } from '../adapters/system-prompt.js';
 import { AgentManifest } from '../utils/loader.js';
 import { loadAllSkills, getAllowedTools } from '../utils/skill-loader.js';
 import { error, info, warn } from '../utils/format.js';
+import { resolveInside } from '../utils/path-safety.js';
 
 export interface ClaudeRunOptions {
   prompt?: string;
@@ -20,14 +21,45 @@ export interface ClaudeRunOptions {
   sessionId?: string;
 }
 
+/**
+ * System prompts larger than this are passed via a temp file
+ * (--append-system-prompt-file) instead of argv, to stay well clear of
+ * OS argument-size limits (E2BIG).
+ */
+const INLINE_SYSTEM_PROMPT_LIMIT = 100 * 1024;
+
 export function runWithClaude(agentDir: string, manifest: AgentManifest, options: ClaudeRunOptions = {}): void {
+  // Validate options before creating any temp files
+  if (options.continue && options.resume) {
+    error('--continue and --resume are mutually exclusive');
+    process.exitCode = 1;
+    return;
+  }
+  if (options.sessionId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(options.sessionId)) {
+    error(`--session-id must be a valid UUID, got: ${options.sessionId}`);
+    process.exitCode = 1;
+    return;
+  }
+
   const systemPrompt = exportToSystemPrompt(agentDir);
   const tmpFiles: string[] = [];
 
-  const promptFile = join(tmpdir(), `gitagent-${randomBytes(4).toString('hex')}.md`);
-  writeFileSync(promptFile, systemPrompt, 'utf-8');
-  tmpFiles.push(promptFile);
+  try {
+    runClaudeProcess(agentDir, manifest, options, systemPrompt, tmpFiles);
+  } finally {
+    for (const f of tmpFiles) {
+      try { unlinkSync(f); } catch { /* ignore */ }
+    }
+  }
+}
 
+function runClaudeProcess(
+  agentDir: string,
+  manifest: AgentManifest,
+  options: ClaudeRunOptions,
+  systemPrompt: string,
+  tmpFiles: string[],
+): void {
   const args: string[] = [];
 
   // Model
@@ -81,11 +113,6 @@ export function runWithClaude(agentDir: string, manifest: AgentManifest, options
   // Session continuation — maps to Claude Code's native session flags.
   // --continue resumes the most recent conversation in the working directory,
   // so it pairs with --workspace: the session is looked up in runCwd.
-  if (options.continue && options.resume) {
-    error('--continue and --resume are mutually exclusive');
-    process.exitCode = 1;
-    return;
-  }
   if (options.continue) {
     args.push('--continue');
     info('Continuing most recent Claude Code session in the working directory');
@@ -95,11 +122,6 @@ export function runWithClaude(agentDir: string, manifest: AgentManifest, options
     info(`Resuming Claude Code session ${options.resume}`);
   }
   if (options.sessionId) {
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(options.sessionId)) {
-      error(`--session-id must be a valid UUID, got: ${options.sessionId}`);
-      process.exitCode = 1;
-      return;
-    }
     args.push('--session-id', options.sessionId);
   }
 
@@ -109,8 +131,16 @@ export function runWithClaude(agentDir: string, manifest: AgentManifest, options
   }
 
   // Append system prompt LAST to prevent the long prompt string
-  // from interfering with argument parsing of other flags
-  args.push('--append-system-prompt', systemPrompt);
+  // from interfering with argument parsing of other flags.
+  // Large prompts go through a temp file to avoid E2BIG on exec.
+  if (Buffer.byteLength(systemPrompt, 'utf-8') > INLINE_SYSTEM_PROMPT_LIMIT) {
+    const promptFile = join(tmpdir(), `gitagent-${randomBytes(4).toString('hex')}.md`);
+    writeFileSync(promptFile, systemPrompt, { encoding: 'utf-8', mode: 0o600 });
+    tmpFiles.push(promptFile);
+    args.push('--append-system-prompt-file', promptFile);
+  } else {
+    args.push('--append-system-prompt', systemPrompt);
+  }
 
   const runCwd = resolve(options.workspace ?? agentDir);
 
@@ -122,25 +152,19 @@ export function runWithClaude(agentDir: string, manifest: AgentManifest, options
   const claudePath = resolveClaudeBinary();
   info(`Claude binary: ${claudePath}`);
 
-  try {
-    const result = spawnSync(claudePath, args, {
-      stdio: 'inherit',
-      cwd: runCwd,
-    });
+  const result = spawnSync(claudePath, args, {
+    stdio: 'inherit',
+    cwd: runCwd,
+  });
 
-    if (result.error) {
-      error(`Failed to launch Claude Code: ${result.error.message}`);
-      info('Make sure Claude Code CLI is installed: npm install -g @anthropic-ai/claude-code');
-      process.exitCode = 1;
-      return;
-    }
-
-    process.exitCode = result.status ?? 0;
-  } finally {
-    for (const f of tmpFiles) {
-      try { unlinkSync(f); } catch { /* ignore */ }
-    }
+  if (result.error) {
+    error(`Failed to launch Claude Code: ${result.error.message}`);
+    info('Make sure Claude Code CLI is installed: npm install -g @anthropic-ai/claude-code');
+    process.exitCode = 1;
+    return;
   }
+
+  process.exitCode = result.status ?? 0;
 }
 
 /**
@@ -275,11 +299,15 @@ function buildHooksSettings(agentDir: string): string | null {
 
       const hookCommands: Array<{ type: string; command: string }> = [];
       for (const hook of hooks) {
-        const scriptPath = join(agentDir, 'hooks', hook.script);
+        const scriptPath = resolveInside(join(agentDir, 'hooks'), hook.script);
+        if (!scriptPath) {
+          warn(`Skipping hook script outside hooks/: ${String(hook.script)}`);
+          continue;
+        }
         if (existsSync(scriptPath)) {
           hookCommands.push({
             type: 'command',
-            command: `bash ${scriptPath}`,
+            command: `bash ${shellQuote(scriptPath)}`,
           });
         }
       }
@@ -304,6 +332,11 @@ function buildHooksSettings(agentDir: string): string | null {
   } catch {
     return null;
   }
+}
+
+/** Quote a string for safe use as a single POSIX shell word. */
+export function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
 /**

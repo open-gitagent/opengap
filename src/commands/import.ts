@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync, cpSync, lstatSync, renameSync } from 'node:fs';
 import { join, resolve, basename } from 'node:path';
 import yaml from 'js-yaml';
 import { error, heading, info, success, warn } from '../utils/format.js';
@@ -43,11 +43,14 @@ function importFromClaude(sourcePath: string, targetDir: string): void {
         const skillDir = join(targetDir, 'skills', entry.name);
         mkdirSync(skillDir, { recursive: true });
 
-        // Copy skill files
-        const skillFiles = readdirSync(join(claudeSkillsDir, entry.name));
-        for (const file of skillFiles) {
-          const content = readFileSync(join(claudeSkillsDir, entry.name, file), 'utf-8');
-          writeFileSync(join(skillDir, file === `${entry.name}.md` ? 'SKILL.md' : file), content);
+        // Copy the whole skill directory (scripts/, references/, ...), skipping symlinks
+        cpSync(join(claudeSkillsDir, entry.name), skillDir, {
+          recursive: true,
+          filter: (src) => !lstatSync(src).isSymbolicLink(),
+        });
+        const legacyName = join(skillDir, `${entry.name}.md`);
+        if (!existsSync(join(skillDir, 'SKILL.md')) && existsSync(legacyName)) {
+          renameSync(legacyName, join(skillDir, 'SKILL.md'));
         }
         success(`Imported skill: ${entry.name}`);
       }
@@ -66,12 +69,12 @@ function importFromClaude(sourcePath: string, targetDir: string): void {
   for (const [title, content] of sections) {
     const lower = title.toLowerCase();
     if (lower.includes('identity') || lower.includes('personality') || lower.includes('style') || lower.includes('about')) {
-      soulContent += `## ${title}\n${content}\n\n`;
+      soulContent += formatSection(title, content);
     } else if (lower.includes('rule') || lower.includes('constraint') || lower.includes('never') || lower.includes('always') || lower.includes('must')) {
-      rulesContent += `## ${title}\n${content}\n\n`;
+      rulesContent += formatSection(title, content);
     } else {
       // Default to SOUL.md
-      soulContent += `## ${title}\n${content}\n\n`;
+      soulContent += formatSection(title, content);
     }
   }
 
@@ -196,14 +199,13 @@ function importFromCrewAI(sourcePath: string, targetDir: string): void {
 
   // Try to parse as YAML (CrewAI crew.yaml format)
   try {
-    const crewConfig = yaml.load(content) as Record<string, unknown>;
-
-    // Extract first agent definition
-    const agents = crewConfig.agents as Record<string, { role?: string; goal?: string; backstory?: string }> | undefined;
+    const crewConfig = yaml.load(content) as Record<string, unknown> | null;
+    const agents = extractCrewAIAgents(crewConfig);
     if (!agents) {
       throw new Error('No agents found in CrewAI config');
     }
 
+    // Extract first agent definition
     const [name, agentDef] = Object.entries(agents)[0];
 
     const agentYaml = {
@@ -229,11 +231,12 @@ function importFromCrewAI(sourcePath: string, targetDir: string): void {
     if (agentEntries.length > 1) {
       mkdirSync(join(targetDir, 'agents'), { recursive: true });
       for (const [subName, subDef] of agentEntries.slice(1)) {
-        const subDir = join(targetDir, 'agents', subName);
+        const safeSubName = subName.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+        const subDir = join(targetDir, 'agents', safeSubName);
         mkdirSync(subDir, { recursive: true });
         const subAgentYaml = {
           spec_version: '0.1.0',
-          name: subName.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
+          name: safeSubName,
           version: '0.1.0',
           description: subDef.goal || subName,
         };
@@ -311,10 +314,10 @@ function importFromCodex(sourcePath: string, targetDir: string): void {
       lower.includes('must') ||
       lower.includes('compliance')
     ) {
-      rulesContent += `## ${title}\n${content}\n\n`;
+      rulesContent += formatSection(title, content);
       hasRules = true;
     } else {
-      soulContent += `## ${title}\n${content}\n\n`;
+      soulContent += formatSection(title, content);
     }
   }
 
@@ -382,10 +385,10 @@ function importFromOpenCode(sourcePath: string, targetDir: string): void {
   for (const [title, content] of sections) {
     const lower = title.toLowerCase();
     if (lower.includes('rule') || lower.includes('constraint') || lower.includes('never') || lower.includes('always') || lower.includes('must') || lower.includes('compliance')) {
-      rulesContent += `## ${title}\n${content}\n\n`;
+      rulesContent += formatSection(title, content);
       hasRules = true;
     } else {
-      soulContent += `## ${title}\n${content}\n\n`;
+      soulContent += formatSection(title, content);
     }
   }
 
@@ -473,10 +476,10 @@ function importFromGemini(sourcePath: string, targetDir: string): void {
   for (const [title, content] of sections) {
     const lower = title.toLowerCase();
     if (lower.includes('rule') || lower.includes('constraint') || lower.includes('never') || lower.includes('always') || lower.includes('must') || lower.includes('compliance')) {
-      rulesContent += `## ${title}\n${content}\n\n`;
+      rulesContent += formatSection(title, content);
       hasRules = true;
     } else {
-      soulContent += `## ${title}\n${content}\n\n`;
+      soulContent += formatSection(title, content);
     }
   }
 
@@ -493,18 +496,73 @@ function importFromGemini(sourcePath: string, targetDir: string): void {
   }
 }
 
-function parseSections(markdown: string): [string, string][] {
+type CrewAIAgentDef = { role?: string; goal?: string; backstory?: string };
+
+/**
+ * Extract agent definitions from a CrewAI YAML config.
+ * Accepts both the standard CrewAI `agents.yaml` layout (a top-level map of
+ * agent name → { role, goal, backstory }) and a wrapped `agents:` key.
+ */
+export function extractCrewAIAgents(config: unknown): Record<string, CrewAIAgentDef> | null {
+  if (!config || typeof config !== 'object' || Array.isArray(config)) return null;
+  const root = config as Record<string, unknown>;
+  const candidate = root.agents && typeof root.agents === 'object' && !Array.isArray(root.agents)
+    ? root.agents as Record<string, unknown>
+    : root;
+
+  const agents: Record<string, CrewAIAgentDef> = {};
+  for (const [name, def] of Object.entries(candidate)) {
+    if (!def || typeof def !== 'object' || Array.isArray(def)) continue;
+    const d = def as Record<string, unknown>;
+    if (typeof d.role !== 'string' && typeof d.goal !== 'string' && typeof d.backstory !== 'string') continue;
+    agents[name] = {
+      role: typeof d.role === 'string' ? d.role : undefined,
+      goal: typeof d.goal === 'string' ? d.goal : undefined,
+      backstory: typeof d.backstory === 'string' ? d.backstory : undefined,
+    };
+  }
+  return Object.keys(agents).length > 0 ? agents : null;
+}
+
+function formatSection(title: string, content: string): string {
+  return title ? `## ${title}\n${content}\n\n` : `${content}\n\n`;
+}
+
+/**
+ * Split markdown into [title, content] sections on #, ## and ### headings.
+ * Text before the first heading is kept as a section with an empty title,
+ * and lines inside fenced code blocks are never treated as headings.
+ */
+export function parseSections(markdown: string): [string, string][] {
   const sections: [string, string][] = [];
-  const lines = markdown.split('\n');
+  const lines = markdown.replace(/\r\n?/g, '\n').split('\n');
   let currentTitle = '';
   let currentContent = '';
+  let fence: string | null = null;
+
+  const flush = () => {
+    const trimmed = currentContent.trim();
+    if (currentTitle || trimmed) {
+      sections.push([currentTitle, trimmed]);
+    }
+  };
 
   for (const line of lines) {
-    const headingMatch = line.match(/^#{1,3}\s+(.+)/);
-    if (headingMatch) {
-      if (currentTitle) {
-        sections.push([currentTitle, currentContent.trim()]);
+    const fenceMatch = line.match(/^\s{0,3}(`{3,}|~{3,})/);
+    if (fenceMatch) {
+      const marker = fenceMatch[1];
+      if (fence === null) {
+        fence = marker;
+      } else if (marker[0] === fence[0] && marker.length >= fence.length && line.trim() === marker) {
+        fence = null;
       }
+      currentContent += line + '\n';
+      continue;
+    }
+
+    const headingMatch = fence === null ? line.match(/^#{1,3}\s+(.+)/) : null;
+    if (headingMatch) {
+      flush();
       currentTitle = headingMatch[1];
       currentContent = '';
     } else {
@@ -512,9 +570,7 @@ function parseSections(markdown: string): [string, string][] {
     }
   }
 
-  if (currentTitle) {
-    sections.push([currentTitle, currentContent.trim()]);
-  }
+  flush();
 
   return sections;
 }
@@ -532,6 +588,8 @@ export const importCommand = new Command('import')
     info(`Source: ${sourcePath}`);
 
     try {
+      mkdirSync(targetDir, { recursive: true });
+
       switch (options.from) {
         case 'claude':
           importFromClaude(sourcePath, targetDir);

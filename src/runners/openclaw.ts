@@ -7,6 +7,7 @@ import { exportToOpenClaw } from '../adapters/openclaw.js';
 import { AgentManifest } from '../utils/loader.js';
 import { error, info, success, warn } from '../utils/format.js';
 import { ensureOpenClawAuth } from '../utils/auth-provision.js';
+import { isPathInside } from '../utils/path-safety.js';
 
 export interface OpenClawRunOptions {
   prompt?: string;
@@ -21,10 +22,13 @@ export function runWithOpenClaw(agentDir: string, manifest: AgentManifest, optio
   const workspaceDir = join(tmpdir(), `gitagent-openclaw-${randomBytes(4).toString('hex')}`);
   mkdirSync(workspaceDir, { recursive: true });
 
-  const hasSubAgents = exp.subAgents.length > 0;
+  // The adapter emits a multi-agent config (`agents`) whenever the manifest
+  // declares sub-agents, even if some sub-agent directories are missing.
+  const config = exp.config as Record<string, Record<string, unknown>>;
+  const isMultiAgent = !!config.agents && typeof config.agents === 'object';
 
   // Write main workspace files
-  const mainWorkspace = hasSubAgents ? join(workspaceDir, `workspace-main`) : workspaceDir;
+  const mainWorkspace = isMultiAgent ? join(workspaceDir, `workspace-main`) : workspaceDir;
   mkdirSync(mainWorkspace, { recursive: true });
 
   writeFileSync(join(mainWorkspace, 'AGENTS.md'), exp.agentsMd, 'utf-8');
@@ -44,6 +48,10 @@ export function runWithOpenClaw(agentDir: string, manifest: AgentManifest, optio
   // Write sub-agent workspaces
   for (const sub of exp.subAgents) {
     const subWorkspace = join(workspaceDir, `workspace-${sub.name}`);
+    if (!isPathInside(workspaceDir, subWorkspace)) {
+      warn(`Skipping sub-agent with invalid name: ${sub.name}`);
+      continue;
+    }
     mkdirSync(subWorkspace, { recursive: true });
 
     writeFileSync(join(subWorkspace, 'SOUL.md'), sub.soulMd, 'utf-8');
@@ -62,16 +70,19 @@ export function runWithOpenClaw(agentDir: string, manifest: AgentManifest, optio
   const runCwd = resolve(options.workspace ?? workspaceDir);
 
   // Write openclaw.json config, pointing workspaces to temp dirs
-  const config = exp.config as Record<string, Record<string, unknown>>;
-  if (hasSubAgents) {
-    const agents = config.agents as Record<string, unknown>;
-    if (agents.main && typeof agents.main === 'object') {
-      (agents.main as Record<string, unknown>).workspace = mainWorkspace;
+  if (isMultiAgent) {
+    const agents = config.agents;
+    if (!agents.main || typeof agents.main !== 'object') {
+      agents.main = {};
     }
-    for (const sub of exp.subAgents) {
-      if (agents[sub.name] && typeof agents[sub.name] === 'object') {
-        (agents[sub.name] as Record<string, unknown>).workspace = join(workspaceDir, `workspace-${sub.name}`);
-      }
+    (agents.main as Record<string, unknown>).workspace = mainWorkspace;
+    for (const [name, value] of Object.entries(agents)) {
+      if (name === 'main' || name === 'list' || !value || typeof value !== 'object') continue;
+      // Sub-agents without an exported directory still get an (empty) temp workspace
+      const subWorkspace = join(workspaceDir, `workspace-${name}`);
+      if (!isPathInside(workspaceDir, subWorkspace)) continue;
+      mkdirSync(subWorkspace, { recursive: true });
+      (value as Record<string, unknown>).workspace = subWorkspace;
     }
   } else {
     config.agent = config.agent ?? {};

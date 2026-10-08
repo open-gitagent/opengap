@@ -510,11 +510,13 @@ opengap install [options]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `-d, --dir <dir>` | `.` | Agent directory |
+| `-f, --force` | `false` | Remove an existing install before re-installing |
+| `--allow-external-sources` | `false` | Allow local `source` / `extends` paths outside the agent directory |
 
 For each entry in `dependencies`:
-- Local paths are copied
+- Local paths are copied. By default they must be relative paths inside the agent directory; pass `--allow-external-sources` to copy from elsewhere on disk
 - Git URLs are shallow-cloned at the specified version/branch
-- Target directory is `mount` path or `.gitagent/deps/<name>`
+- Target directory is `mount` path or `.gitagent/deps/<name>`. `mount` must be a relative path inside the agent directory (absolute paths, `..` escapes and the agent root itself are rejected)
 - Validates that installed dependencies contain `agent.yaml`
 
 ```bash

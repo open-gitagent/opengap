@@ -31,7 +31,7 @@ function isDirEmpty(dir: string): boolean {
 
 function detectDefaultBranch(url: string): string {
   try {
-    const output = execFileSync('git', ['ls-remote', '--symref', url, 'HEAD'], {
+    const output = execFileSync('git', ['ls-remote', '--symref', '--', url, 'HEAD'], {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 15_000,
@@ -92,7 +92,7 @@ export function resolveRepo(url: string, options: ResolveRepoOptions = {}): Reso
 
 function cloneRepo(url: string, branch: string, dir: string): void {
   mkdirSync(dir, { recursive: true });
-  execFileSync('git', ['clone', '--depth', '1', '--branch', branch, url, dir], {
+  execFileSync('git', ['clone', '--depth', '1', '--branch', branch, '--', url, dir], {
     stdio: 'pipe',
   });
 }

@@ -62,7 +62,17 @@ export const runCommand = new Command('run')
           noCache: !options.cache,
         });
         agentDir = result.dir;
-        cleanup = result.cleanup;
+        if (result.cleanup) {
+          // Runners may call process.exit(); make sure temp clones are still removed
+          const done = result.cleanup;
+          let cleaned = false;
+          cleanup = () => {
+            if (cleaned) return;
+            cleaned = true;
+            done();
+          };
+          process.once('exit', cleanup);
+        }
       } catch (e) {
         error(`Failed to clone repository: ${(e as Error).message}`);
         process.exit(1);
@@ -151,10 +161,13 @@ export const runCommand = new Command('run')
         case 'git':
           if (!options.repo) {
             error('The git adapter requires --repo (-r)');
-            process.exit(1);
+            process.exitCode = 1;
+            return;
           }
+          // Reuse the clone resolved above instead of cloning a second time
           await runWithGit(options.repo, {
             repo: options.repo,
+            agentDir,
             branch: options.branch,
             refresh: options.refresh,
             noCache: !options.cache,
@@ -168,11 +181,11 @@ export const runCommand = new Command('run')
         default:
           error(`Unknown adapter: ${options.adapter}`);
           info('Supported adapters: claude, openai, crewai, openclaw, nanobot, lyzr, github, opencode, gemini, gitclaw, git, prompt');
-          process.exit(1);
+          process.exitCode = 1;
       }
     } catch (e) {
       error(`Run failed: ${(e as Error).message}`);
-      process.exit(1);
+      process.exitCode = 1;
     } finally {
       if (cleanup) cleanup();
     }

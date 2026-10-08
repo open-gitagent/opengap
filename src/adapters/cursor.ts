@@ -214,7 +214,7 @@ export interface MdcFile {
 }
 
 export function parseMdcFile(content: string): MdcFile {
-  const match = content.match(/^---\n([\s\S]*?)\n---\n*([\s\S]*)$/);
+  const match = content.replace(/\r\n?/g, '\n').match(/^---\n([\s\S]*?)\n---\n*([\s\S]*)$/);
   if (!match) {
     return { frontmatter: {}, body: content.trim() };
   }

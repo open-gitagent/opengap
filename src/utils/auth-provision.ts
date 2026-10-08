@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, chmodSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { info, warn, error } from './format.js';
 
@@ -18,6 +18,35 @@ export function resolveOpenAIKey(): string | null {
   return process.env.OPENAI_API_KEY ?? null;
 }
 
+type JsonObject = Record<string, unknown>;
+
+/**
+ * Read a JSON config file that may hold credentials.
+ * Returns {} if it does not exist. Exits with an error (instead of
+ * overwriting) if the file exists but cannot be parsed.
+ */
+function readJsonConfig(path: string): JsonObject {
+  if (!existsSync(path)) return {};
+  try {
+    const data = JSON.parse(readFileSync(path, 'utf-8'));
+    if (data && typeof data === 'object' && !Array.isArray(data)) return data as JsonObject;
+  } catch { /* fall through */ }
+  error(`Could not parse ${path}; refusing to overwrite it.`);
+  info('Fix or move the file, then run the command again.');
+  process.exit(1);
+}
+
+/** Write a credentials-bearing JSON file readable only by the current user. */
+function writeSecureJson(path: string, data: JsonObject): void {
+  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  writeFileSync(path, JSON.stringify(data, null, 2), { encoding: 'utf-8', mode: 0o600 });
+  try { chmodSync(path, 0o600); } catch { /* best effort (e.g. Windows) */ }
+}
+
+function asObject(value: unknown): JsonObject {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as JsonObject : {};
+}
+
 /**
  * Ensure OpenClaw has Anthropic auth configured.
  * Writes auth-profiles.json if ANTHROPIC_API_KEY is set but OpenClaw isn't configured.
@@ -27,13 +56,9 @@ export function ensureOpenClawAuth(): void {
   const authPath = join(agentDir, 'auth-profiles.json');
 
   // Check if already configured with valid profiles
-  if (existsSync(authPath)) {
-    try {
-      const store = JSON.parse(readFileSync(authPath, 'utf-8'));
-      if (store.profiles && Object.keys(store.profiles).length > 0) {
-        return; // Already configured
-      }
-    } catch { /* malformed, overwrite */ }
+  const existing = readJsonConfig(authPath);
+  if (Object.keys(asObject(existing.profiles)).length > 0) {
+    return; // Already configured
   }
 
   const key = resolveAnthropicKey();
@@ -43,10 +68,11 @@ export function ensureOpenClawAuth(): void {
     process.exit(1);
   }
 
-  mkdirSync(agentDir, { recursive: true });
   const store = {
     version: 1,
+    ...existing,
     profiles: {
+      ...asObject(existing.profiles),
       'anthropic:api': {
         type: 'api_key',
         provider: 'anthropic',
@@ -54,7 +80,7 @@ export function ensureOpenClawAuth(): void {
       },
     },
   };
-  writeFileSync(authPath, JSON.stringify(store, null, 2), 'utf-8');
+  writeSecureJson(authPath, store);
   info('Auto-configured OpenClaw auth from ANTHROPIC_API_KEY');
 }
 
@@ -67,13 +93,9 @@ export function ensureNanobotAuth(): void {
   const configPath = join(configDir, 'config.json');
 
   // Check if already configured
-  if (existsSync(configPath)) {
-    try {
-      const config = JSON.parse(readFileSync(configPath, 'utf-8'));
-      if (config.providers && Object.keys(config.providers).length > 0) {
-        return; // Already configured
-      }
-    } catch { /* malformed, overwrite */ }
+  const existing = readJsonConfig(configPath);
+  if (Object.keys(asObject(existing.providers)).length > 0) {
+    return; // Already configured
   }
 
   const key = resolveAnthropicKey();
@@ -83,13 +105,14 @@ export function ensureNanobotAuth(): void {
     process.exit(1);
   }
 
-  mkdirSync(configDir, { recursive: true });
   const config = {
+    ...existing,
     providers: {
+      ...asObject(existing.providers),
       anthropic: { apiKey: key },
     },
   };
-  writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+  writeSecureJson(configPath, config);
   info('Auto-configured Nanobot auth from ANTHROPIC_API_KEY');
 }
 

@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { exportToLyzr } from '../adapters/lyzr.js';
 import { AgentManifest } from '../utils/loader.js';
 import { error, info, success, label, heading, divider } from '../utils/format.js';
@@ -13,6 +13,20 @@ export interface LyzrRunOptions {
   apiKey?: string;
   userId?: string;
   workspace?: string;
+}
+
+/**
+ * Resolve the user_id sent with Lyzr chat requests.
+ * Precedence: explicit option, LYZR_USER_ID env var, then a stable
+ * non-secret identifier derived from a hash of the API key.
+ * The API key itself is never used as the user ID.
+ */
+export function resolveLyzrUserId(apiKey: string, userId?: string): string {
+  if (userId) return userId;
+  const fromEnv = process.env.LYZR_USER_ID;
+  if (fromEnv) return fromEnv;
+  const digest = createHash('sha256').update(apiKey).digest('hex').slice(0, 16);
+  return `gitagent-${digest}`;
 }
 
 /**
@@ -133,7 +147,7 @@ export async function runWithLyzr(agentDir: string, manifest: AgentManifest, opt
   divider();
 
   // Build chat request
-  const userId = options.userId || apiKey;
+  const userId = resolveLyzrUserId(apiKey, options.userId);
   const sessionId = `${agentId}-${randomBytes(4).toString('hex')}`;
 
   info(`Launching Lyzr agent "${manifest.name}"...`);

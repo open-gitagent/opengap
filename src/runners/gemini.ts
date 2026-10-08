@@ -88,25 +88,25 @@ export function runWithGemini(agentDir: string, manifest: AgentManifest, options
     info('Starting interactive mode. Type your messages to chat.');
   }
 
-  // On Windows with shell: true, we need to build a properly quoted command string
-  // On Unix, we can pass args array directly
+  // On Windows, `gemini` is a .cmd shim that must be run through cmd.exe.
+  // We never use `shell: true`; instead we invoke cmd.exe explicitly with
+  // every argument double-quoted, and refuse arguments containing characters
+  // that cmd.exe would still interpret inside quotes.
   let result;
   if (process.platform === 'win32') {
-    // Build command string with proper quoting for Windows shell
-    const quotedArgs = args.map(arg => {
-      // Quote arguments that contain spaces or special characters
-      if (arg.includes(' ') || arg.includes('"')) {
-        return `"${arg.replace(/"/g, '\\"')}"`;
-      }
-      return arg;
-    });
-    const commandString = `gemini ${quotedArgs.join(' ')}`;
-    
-    result = spawnSync(commandString, [], {
+    const unsafe = args.find(arg => !isSafeWindowsCmdArg(arg));
+    if (unsafe !== undefined) {
+      try { rmSync(workspaceDir, { recursive: true, force: true }); } catch { /* ignore */ }
+      error('On Windows, arguments passed to Gemini CLI cannot contain " % ! or line breaks.');
+      process.exitCode = 1;
+      return;
+    }
+    const commandLine = ['gemini', ...args].map(quoteWindowsCmdArg).join(' ');
+    result = spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', `"${commandLine}"`], {
       stdio: 'inherit',
       cwd: workspaceDir,
       env: { ...process.env },
-      shell: true,
+      windowsVerbatimArguments: true,
     });
   } else {
     result = spawnSync('gemini', args, {
@@ -123,8 +123,23 @@ export function runWithGemini(agentDir: string, manifest: AgentManifest, options
     error(`Failed to launch Gemini CLI: ${result.error.message}`);
     info('Make sure Gemini CLI is installed: npm install -g @google/gemini-cli');
     info('Or visit: https://github.com/google-gemini/gemini-cli');
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
-  process.exit(result.status ?? 0);
+  process.exitCode = result.status ?? 0;
+}
+
+/**
+ * Characters that cmd.exe interprets even inside double quotes
+ * (quote itself, variable expansion, delayed expansion, line breaks).
+ */
+export function isSafeWindowsCmdArg(arg: string): boolean {
+  return !/["%!\r\n\0]/.test(arg);
+}
+
+/** Double-quote an argument for cmd.exe; caller must check isSafeWindowsCmdArg first. */
+function quoteWindowsCmdArg(arg: string): string {
+  // Double trailing backslashes so they don't escape the closing quote
+  return `"${arg.replace(/(\\+)$/, '$1$1')}"`;
 }

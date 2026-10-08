@@ -1,8 +1,9 @@
-import { existsSync, readFileSync, readdirSync, cpSync, mkdirSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { basename, join, resolve } from 'node:path';
 import yaml from 'js-yaml';
 import { loadAgentManifest, loadFileIfExists } from '../utils/loader.js';
-import { loadAllSkillMetadata } from '../utils/skill-loader.js';
+import { loadKnowledgeDocument } from '../utils/path-safety.js';
+import { loadAllSkillMetadata, type SkillMetadata } from '../utils/skill-loader.js';
 import { buildMcpServersConfig } from './shared.js';
 
 /**
@@ -12,10 +13,13 @@ import { buildMcpServersConfig } from './shared.js';
  *   - RULES.md: child rules append to parent rules (union)
  *   - skills/, tools/: union with child shadowing parent on name collision
  *   - memory/: isolated per agent (not inherited)
+ *
+ * The merge happens in memory only; the agent directory is never modified.
  */
 function mergeParentContent(agentDir: string, parentDir: string): {
   mergedSoul: string | null;
   mergedRules: string | null;
+  inheritedSkills: SkillMetadata[];
 } {
   const childSoul = loadFileIfExists(join(agentDir, 'SOUL.md'));
   const parentSoul = loadFileIfExists(join(parentDir, 'SOUL.md'));
@@ -34,22 +38,12 @@ function mergeParentContent(agentDir: string, parentDir: string): {
     mergedRules = childRules ?? parentRules;
   }
 
-  // skills/: copy parent skills that don't exist in child
-  const parentSkillsDir = join(parentDir, 'skills');
+  // skills/: inherit parent skills that the child does not shadow
   const childSkillsDir = join(agentDir, 'skills');
-  if (existsSync(parentSkillsDir)) {
-    mkdirSync(childSkillsDir, { recursive: true });
-    const parentSkills = readdirSync(parentSkillsDir, { withFileTypes: true });
-    for (const entry of parentSkills) {
-      if (!entry.isDirectory()) continue;
-      const childSkillPath = join(childSkillsDir, entry.name);
-      if (!existsSync(childSkillPath)) {
-        cpSync(join(parentSkillsDir, entry.name), childSkillPath, { recursive: true });
-      }
-    }
-  }
+  const inheritedSkills = loadAllSkillMetadata(join(parentDir, 'skills'))
+    .filter(skill => !existsSync(join(childSkillsDir, basename(skill.directory))));
 
-  return { mergedSoul, mergedRules };
+  return { mergedSoul, mergedRules, inheritedSkills };
 }
 
 /**
@@ -105,11 +99,13 @@ function buildInstructions(
 
   let soul: string | null;
   let rules: string | null;
+  let inheritedSkills: SkillMetadata[] = [];
 
   if (hasParent) {
     const merged = mergeParentContent(agentDir, parentDir);
     soul = merged.mergedSoul;
     rules = merged.mergedRules;
+    inheritedSkills = merged.inheritedSkills;
   } else {
     soul = loadFileIfExists(join(agentDir, 'SOUL.md'));
     rules = loadFileIfExists(join(agentDir, 'RULES.md'));
@@ -139,17 +135,20 @@ function buildInstructions(
 
   // Skills — loaded via skill-loader (metadata only for progressive disclosure)
   const skillsDir = join(agentDir, 'skills');
-  const skills = loadAllSkillMetadata(skillsDir);
+  const skills = [
+    ...loadAllSkillMetadata(skillsDir).map(skill => ({ skill, base: 'skills' })),
+    ...inheritedSkills.map(skill => ({ skill, base: '.gitagent/parent/skills' })),
+  ];
   if (skills.length > 0) {
     const skillParts: string[] = ['## Skills\n'];
-    for (const skill of skills) {
-      const skillDirName = skill.directory.split('/').pop()!;
+    for (const { skill, base } of skills) {
+      const skillDirName = basename(skill.directory);
       skillParts.push(`### ${skill.name}`);
       skillParts.push(skill.description);
       if (skill.allowedTools && skill.allowedTools.length > 0) {
         skillParts.push(`Allowed tools: ${skill.allowedTools.join(', ')}`);
       }
-      skillParts.push(`Full instructions: \`skills/${skillDirName}/SKILL.md\``);
+      skillParts.push(`Full instructions: \`${base}/${skillDirName}/SKILL.md\``);
       skillParts.push('');
     }
     parts.push(skillParts.join('\n'));
@@ -228,10 +227,10 @@ function buildInstructions(
       documents?: Array<{ path: string; always_load?: boolean }>;
     };
 
-    if (index.documents) {
+    if (index?.documents) {
       const alwaysLoad = index.documents.filter(d => d.always_load);
       for (const doc of alwaysLoad) {
-        const content = loadFileIfExists(join(knowledgeDir, doc.path));
+        const content = loadKnowledgeDocument(knowledgeDir, doc.path);
         if (content) {
           parts.push(`## Reference: ${doc.path}\n${content}`);
         }

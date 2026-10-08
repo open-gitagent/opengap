@@ -1,6 +1,33 @@
 import { existsSync, mkdirSync, rmSync, cpSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { resolveInside } from './path-safety.js';
+
+const GITHUB_REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+
+/** Parse an `owner/repo[#path]` reference, rejecting unsafe repo names and paths. */
+export function parseGitHubSkillRef(skillRef: string): { repo: string; subPath?: string } {
+  const [repo, subPath] = skillRef.split('#');
+  if (!GITHUB_REPO_RE.test(repo) || repo.split('/').some(seg => seg === '.' || seg === '..')) {
+    throw new Error(`Invalid GitHub repository reference: "${repo}" (expected owner/repo)`);
+  }
+  if (subPath !== undefined) {
+    const segments = subPath.split('/').filter(Boolean);
+    if (subPath.startsWith('/') || segments.length === 0 || segments.some(seg => seg === '.' || seg === '..' || seg.startsWith('-'))) {
+      throw new Error(`Invalid skill path: "${subPath}"`);
+    }
+    return { repo, subPath: segments.join('/') };
+  }
+  return { repo };
+}
+
+function skillInstallDir(targetDir: string, skillName: string): string {
+  const dir = resolveInside(targetDir, skillName);
+  if (!dir || skillName.includes('/') || skillName.includes('\\')) {
+    throw new Error(`Invalid skill name: "${skillName}"`);
+  }
+  return dir;
+}
 
 export interface RegistryConfig {
   name: string;
@@ -103,8 +130,8 @@ export class SkillsMPProvider implements SkillRegistryProvider {
   }
 
   async install(skillName: string, targetDir: string): Promise<void> {
+    const skillDir = skillInstallDir(targetDir, skillName);
     const pkg = await this.fetch(skillName);
-    const skillDir = join(targetDir, skillName);
 
     mkdirSync(skillDir, { recursive: true });
     writeFileSync(join(skillDir, 'SKILL.md'), pkg.skillMd, 'utf-8');
@@ -154,7 +181,7 @@ export class GitHubProvider implements SkillRegistryProvider {
 
   async fetch(skillRef: string): Promise<SkillPackage> {
     // skillRef format: owner/repo or owner/repo#path
-    const [repo, subPath] = skillRef.split('#');
+    const { repo, subPath } = parseGitHubSkillRef(skillRef);
     const path = subPath ?? '';
     const skillMdPath = path ? `${path}/SKILL.md` : 'SKILL.md';
 
@@ -180,18 +207,22 @@ export class GitHubProvider implements SkillRegistryProvider {
   }
 
   async install(skillRef: string, targetDir: string): Promise<void> {
-    const [repo, subPath] = skillRef.split('#');
+    const { repo, subPath } = parseGitHubSkillRef(skillRef);
 
     if (subPath) {
       // Clone and extract specific path
       const tmpDir = join(targetDir, '.tmp-git-clone');
       try {
-        execFileSync('git', ['clone', '--depth', '1', '--filter=blob:none', '--sparse', `https://github.com/${repo}.git`, tmpDir], { stdio: 'pipe' });
-        execFileSync('git', ['-C', tmpDir, 'sparse-checkout', 'set', subPath], { stdio: 'pipe' });
+        execFileSync('git', ['clone', '--depth', '1', '--filter=blob:none', '--sparse', '--', `https://github.com/${repo}.git`, tmpDir], { stdio: 'pipe' });
+        execFileSync('git', ['-C', tmpDir, 'sparse-checkout', 'set', '--', subPath], { stdio: 'pipe' });
         const skillName = subPath.split('/').pop()!;
-        const skillDir = join(targetDir, skillName);
+        const skillDir = skillInstallDir(targetDir, skillName);
+        const sourceDir = resolveInside(tmpDir, subPath);
+        if (!sourceDir) {
+          throw new Error(`Invalid skill path: "${subPath}"`);
+        }
         mkdirSync(skillDir, { recursive: true });
-        cpSync(join(tmpDir, subPath), skillDir, { recursive: true });
+        cpSync(sourceDir, skillDir, { recursive: true });
       } finally {
         if (existsSync(tmpDir)) {
           rmSync(tmpDir, { recursive: true, force: true });
@@ -200,8 +231,8 @@ export class GitHubProvider implements SkillRegistryProvider {
     } else {
       // Clone entire repo as a skill
       const skillName = repo.split('/').pop()!;
-      const skillDir = join(targetDir, skillName);
-      execFileSync('git', ['clone', '--depth', '1', `https://github.com/${repo}.git`, skillDir], { stdio: 'pipe' });
+      const skillDir = skillInstallDir(targetDir, skillName);
+      execFileSync('git', ['clone', '--depth', '1', '--', `https://github.com/${repo}.git`, skillDir], { stdio: 'pipe' });
     }
   }
 }

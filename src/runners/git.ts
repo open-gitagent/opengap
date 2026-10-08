@@ -22,6 +22,8 @@ export interface GitRunOptions {
   adapter?: string;
   prompt?: string;
   workspace?: string;
+  /** Already-resolved agent directory (skips cloning; caller owns cleanup). */
+  agentDir?: string;
 }
 
 /**
@@ -46,18 +48,32 @@ export async function runWithGit(
   let agentDir: string;
   let cleanup: (() => void) | undefined;
 
-  try {
-    const result = resolveRepo(repoUrl, {
-      branch: options.branch,
-      refresh: options.refresh,
-      noCache: options.noCache,
-    });
-    agentDir = result.dir;
-    cleanup = result.cleanup;
-    success(`Resolved to ${agentDir}`);
-  } catch (e) {
-    error(`Failed to clone repository: ${(e as Error).message}`);
-    process.exit(1);
+  if (options.agentDir) {
+    agentDir = options.agentDir;
+  } else {
+    try {
+      const result = resolveRepo(repoUrl, {
+        branch: options.branch,
+        refresh: options.refresh,
+        noCache: options.noCache,
+      });
+      agentDir = result.dir;
+      if (result.cleanup) {
+        // Runners may call process.exit(); make sure temp clones are still removed
+        const done = result.cleanup;
+        let cleaned = false;
+        cleanup = () => {
+          if (cleaned) return;
+          cleaned = true;
+          done();
+        };
+        process.once('exit', cleanup);
+      }
+      success(`Resolved to ${agentDir}`);
+    } catch (e) {
+      error(`Failed to clone repository: ${(e as Error).message}`);
+      process.exit(1);
+    }
   }
 
   // Validate
@@ -122,11 +138,11 @@ export async function runWithGit(
         break;
       default:
         error(`Unknown adapter: ${adapter}`);
-        process.exit(1);
+        process.exitCode = 1;
     }
   } catch (e) {
     error(`Run failed: ${(e as Error).message}`);
-    process.exit(1);
+    process.exitCode = 1;
   } finally {
     if (cleanup) cleanup();
   }

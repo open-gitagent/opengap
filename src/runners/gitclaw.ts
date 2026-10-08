@@ -1,4 +1,4 @@
-import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
+import { writeFileSync, mkdirSync, rmSync, cpSync, existsSync, lstatSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
@@ -42,10 +42,21 @@ export function runWithGitclaw(agentDir: string, manifest: AgentManifest, option
   if (exp.rulesMd) writeFileSync(join(workspaceDir, 'RULES.md'), exp.rulesMd, 'utf-8');
   if (exp.dutiesMd) writeFileSync(join(workspaceDir, 'DUTIES.md'), exp.dutiesMd, 'utf-8');
 
-  // Write knowledge index
+  // Copy knowledge documents, hook scripts and full skill directories
+  // (scripts/, references/, ...) so they are available to gitclaw.
+  copyDirIfExists(join(agentDir, 'knowledge'), join(workspaceDir, 'knowledge'));
+  copyDirIfExists(join(agentDir, 'hooks'), join(workspaceDir, 'hooks'));
+  for (const skill of exp.skills) {
+    copyDirIfExists(join(agentDir, 'skills', skill.name), join(workspaceDir, 'skills', skill.name));
+  }
+
+  // Write knowledge index (converted to gitclaw format)
   if (exp.knowledgeIndex) {
     mkdirSync(join(workspaceDir, 'knowledge'), { recursive: true });
     writeFileSync(join(workspaceDir, 'knowledge', 'index.yaml'), exp.knowledgeIndex, 'utf-8');
+  } else {
+    // Don't leave a gitagent-format index behind for gitclaw to misread
+    rmSync(join(workspaceDir, 'knowledge', 'index.yaml'), { force: true });
   }
 
   // Write skills
@@ -107,4 +118,13 @@ export function runWithGitclaw(agentDir: string, manifest: AgentManifest, option
   }
 
   process.exitCode = result.status ?? 0;
+}
+
+/** Recursively copy a directory, skipping symlinks so nothing outside the agent is pulled in. */
+function copyDirIfExists(src: string, dest: string): void {
+  if (!existsSync(src)) return;
+  cpSync(src, dest, {
+    recursive: true,
+    filter: (path) => !lstatSync(path).isSymbolicLink(),
+  });
 }

@@ -74,8 +74,9 @@ export function runWithOpenCode(agentDir: string, manifest: AgentManifest, optio
     error(`Failed to launch OpenCode: ${result.error.message}`);
     info('Make sure OpenCode is installed: npm install -g opencode');
     info('Or: brew install sst/tap/opencode');
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
-  process.exit(result.status ?? 0);
+  process.exitCode = result.status ?? 0;
 }

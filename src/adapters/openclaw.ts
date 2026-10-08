@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import yaml from 'js-yaml';
 import { loadAgentManifest, loadFileIfExists } from '../utils/loader.js';
+import { loadKnowledgeDocument } from '../utils/path-safety.js';
 import { loadAllSkills, getAllowedTools } from '../utils/skill-loader.js';
 import { buildMcpServersMarkdown } from './shared.js';
 
@@ -216,12 +217,12 @@ function buildAgentsMd(agentDir: string, manifest: ReturnType<typeof loadAgentMa
       documents?: Array<{ path: string; always_load?: boolean }>;
     };
 
-    if (index.documents) {
+    if (index?.documents) {
       const alwaysLoad = index.documents.filter(d => d.always_load);
       if (alwaysLoad.length > 0) {
         parts.push('\n## Knowledge Base\n');
         for (const doc of alwaysLoad) {
-          const content = loadFileIfExists(join(knowledgeDir, doc.path));
+          const content = loadKnowledgeDocument(knowledgeDir, doc.path);
           if (content) {
             parts.push(`### ${doc.path}\n${content}\n`);
           }

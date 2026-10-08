@@ -11,7 +11,7 @@ export interface SkillFrontmatter {
   description: string;
   license?: string;
   compatibility?: string;
-  'allowed-tools'?: string;
+  'allowed-tools'?: string | string[];
   metadata?: Record<string, string>;
 }
 
@@ -37,7 +37,7 @@ export interface SkillMetadata {
  * Parse a SKILL.md file into frontmatter + instructions body.
  */
 export function parseSkillMd(filePath: string): ParsedSkill {
-  const content = readFileSync(filePath, 'utf-8');
+  const content = readFileSync(filePath, 'utf-8').replace(/\r\n?/g, '\n');
   const dir = join(filePath, '..');
 
   const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n*([\s\S]*)$/);
@@ -72,7 +72,7 @@ export function parseSkillMd(filePath: string): ParsedSkill {
  * Returns name + description for lightweight listing/routing.
  */
 export function loadSkillMetadata(filePath: string): SkillMetadata {
-  const content = readFileSync(filePath, 'utf-8');
+  const content = readFileSync(filePath, 'utf-8').replace(/\r\n?/g, '\n');
   const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
 
   if (!frontmatterMatch) {
@@ -100,11 +100,18 @@ export function loadSkillFull(filePath: string): ParsedSkill {
 }
 
 /**
- * Get the list of allowed tools from the space-delimited string.
+ * Get the list of allowed tools. Accepts the spec's space-delimited string
+ * as well as a YAML list of tool names.
  */
 export function getAllowedTools(skill: SkillFrontmatter): string[] {
   const tools = skill['allowed-tools'];
-  if (!tools || tools.trim() === '') return [];
+  if (Array.isArray(tools)) {
+    return tools
+      .filter((t): t is string => typeof t === 'string')
+      .map(t => t.trim())
+      .filter(Boolean);
+  }
+  if (typeof tools !== 'string' || tools.trim() === '') return [];
   return tools.split(/\s+/).filter(Boolean);
 }
 

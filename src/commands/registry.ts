@@ -1,7 +1,7 @@
 import { Command } from 'commander';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { join, resolve, basename } from 'node:path';
-import { execSync } from 'node:child_process';
+import { existsSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { loadAgentManifest } from '../utils/loader.js';
 import { success, error, warn, info, heading, divider } from '../utils/format.js';
 
@@ -19,6 +19,36 @@ const VALID_CATEGORIES = [
   'productivity', 'finance', 'customer-support', 'creative',
   'education', 'other',
 ];
+
+const AGENT_NAME_RE = /^[a-z][a-z0-9-]*$/;
+const GITHUB_SEGMENT_RE = /^[A-Za-z0-9_.-]+$/;
+
+/** Registry agent names must be lowercase kebab-case. */
+export function isValidAgentName(name: string): boolean {
+  return AGENT_NAME_RE.test(name);
+}
+
+/**
+ * Validate a public GitHub repository URL and return its normalized form
+ * (https://github.com/<owner>/<repo>), or null if invalid.
+ */
+export function normalizeGitHubRepoUrl(input: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(input.trim());
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:' || url.hostname !== 'github.com') return null;
+  if (url.username || url.password || url.port || url.search || url.hash) return null;
+  const segments = url.pathname.replace(/\/+$/, '').split('/').filter(Boolean);
+  if (segments.length !== 2) return null;
+  const owner = segments[0];
+  const repo = segments[1].replace(/\.git$/, '');
+  if (!GITHUB_SEGMENT_RE.test(owner) || !GITHUB_SEGMENT_RE.test(repo)) return null;
+  if (owner.startsWith('.') || repo.startsWith('.')) return null;
+  return `https://github.com/${owner}/${repo}`;
+}
 
 export const registryCommand = new Command('registry')
   .description('Submit an agent to the gitagent registry')
@@ -58,6 +88,11 @@ export const registryCommand = new Command('registry')
       process.exit(1);
     }
 
+    if (!isValidAgentName(manifest.name)) {
+      error(`Invalid agent name "${manifest.name}": must match ${AGENT_NAME_RE} (lowercase letters, digits, hyphens)`);
+      process.exit(1);
+    }
+
     if (!manifest.version) {
       error('agent.yaml must have a "version" field');
       process.exit(1);
@@ -71,9 +106,9 @@ export const registryCommand = new Command('registry')
     success('Agent validated');
 
     // ── Step 2: Validate repo URL ──
-    const repoUrl = options.repo.replace(/\/+$/, '');
-    if (!repoUrl.startsWith('https://github.com/')) {
-      error('Repository URL must be a GitHub URL (https://github.com/...)');
+    const repoUrl = normalizeGitHubRepoUrl(options.repo);
+    if (!repoUrl) {
+      error('Repository URL must be a GitHub repository URL (https://github.com/<owner>/<repo>)');
       process.exit(1);
     }
 
@@ -89,7 +124,10 @@ export const registryCommand = new Command('registry')
     // ── Step 4: Detect GitHub username ──
     let ghUser: string;
     try {
-      ghUser = execSync('gh api user -q .login', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+      ghUser = execFileSync('gh', ['api', 'user', '-q', '.login'], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+      if (!/^[A-Za-z0-9-]+$/.test(ghUser)) {
+        throw new Error('unexpected GitHub username');
+      }
     } catch {
       error('Could not detect GitHub username. Make sure `gh` CLI is installed and authenticated.');
       info('Run: gh auth login');
@@ -131,7 +169,7 @@ export const registryCommand = new Command('registry')
     info('Forking registry repo...');
 
     try {
-      execSync(`gh repo fork ${REGISTRY_REPO} --clone=false 2>/dev/null || true`, {
+      execFileSync('gh', ['repo', 'fork', REGISTRY_REPO, '--clone=false'], {
         stdio: ['pipe', 'pipe', 'pipe'],
       });
     } catch {
@@ -145,7 +183,7 @@ export const registryCommand = new Command('registry')
 
     info('Cloning your fork...');
     try {
-      execSync(`gh repo clone ${ghUser}/registry ${tmpDir} -- --depth 1`, {
+      execFileSync('gh', ['repo', 'clone', `${ghUser}/registry`, tmpDir, '--', '--depth', '1'], {
         stdio: ['pipe', 'pipe', 'pipe'],
       });
     } catch {
@@ -172,10 +210,10 @@ export const registryCommand = new Command('registry')
     info('Pushing to your fork...');
     try {
       const gitOpts = { cwd: tmpDir, stdio: 'pipe' as const };
-      execSync(`git checkout -b ${branchName}`, gitOpts);
-      execSync(`git add agents/${folderName}`, gitOpts);
-      execSync(`git commit -m "feat: add ${manifest.name} agent to registry"`, gitOpts);
-      execSync(`git push origin ${branchName}`, gitOpts);
+      execFileSync('git', ['checkout', '-b', branchName], gitOpts);
+      execFileSync('git', ['add', '--', `agents/${folderName}`], gitOpts);
+      execFileSync('git', ['commit', '-m', `feat: add ${manifest.name} agent to registry`], gitOpts);
+      execFileSync('git', ['push', 'origin', branchName], gitOpts);
     } catch (e) {
       error(`Failed to push: ${(e as Error).message}`);
       cleanup(tmpDir);
@@ -186,9 +224,7 @@ export const registryCommand = new Command('registry')
     info('Creating pull request...');
     let prUrl: string;
     try {
-      prUrl = execSync(
-        `gh pr create --repo ${REGISTRY_REPO} --head ${ghUser}:${branchName} --title "Add ${manifest.name} agent" --body "$(cat <<'PREOF'
-## Agent Submission
+      const body = `## Agent Submission
 
 - **Name**: ${manifest.name}
 - **Author**: ${ghUser}
@@ -203,8 +239,10 @@ export const registryCommand = new Command('registry')
 - [x] Agent repository is public
 - [x] Repository contains valid \`agent.yaml\`
 - [x] Repository contains \`SOUL.md\`
-PREOF
-)"`,
+`;
+      prUrl = execFileSync(
+        'gh',
+        ['pr', 'create', '--repo', REGISTRY_REPO, '--head', `${ghUser}:${branchName}`, '--title', `Add ${manifest.name} agent`, '--body', body],
         { encoding: 'utf-8', cwd: tmpDir, stdio: ['pipe', 'pipe', 'pipe'] }
       ).trim();
     } catch (e) {
@@ -250,7 +288,7 @@ ${skillsList}
 
 function cleanup(dir: string): void {
   try {
-    execSync(`rm -rf "${dir}"`, { stdio: 'pipe' });
+    rmSync(dir, { recursive: true, force: true });
   } catch {
     // best effort
   }

@@ -528,7 +528,14 @@ export const initCommand = new Command('init')
       process.exit(1);
     }
 
+    if (!['minimal', 'standard', 'full', 'llm-wiki'].includes(template)) {
+      error(`Unknown template: ${template}. Use minimal, standard, full, or llm-wiki.`);
+      process.exit(1);
+    }
+
     heading(`Scaffolding ${template} gitagent`);
+
+    mkdirSync(dir, { recursive: true });
 
     if (template === 'minimal') {
       createFile(join(dir, 'agent.yaml'), MINIMAL_AGENT_YAML);
@@ -613,7 +620,6 @@ export const initCommand = new Command('init')
       success('Created compliance/ (regulatory-map, validation-schedule, risk-assessment)');
       success('Created config/default.yaml');
     } else if (template === 'llm-wiki') {
-      mkdirSync(dir, { recursive: true });
       createFile(join(dir, 'agent.yaml'), WIKI_AGENT_YAML);
       createFile(join(dir, 'SOUL.md'), WIKI_SOUL_MD);
       createFile(join(dir, 'RULES.md'), WIKI_RULES_MD);
