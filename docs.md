@@ -941,11 +941,15 @@ Adapter: `openai`
 
 Adapter: `crewai`
 
-1. Exports agent as CrewAI YAML config
-2. Writes to temp file
-3. Runs `crewai kickoff --config <tmpfile>`
+1. Exports agent as a standalone Python script using the CrewAI Python API directly — the `crewai` CLI has no `kickoff` subcommand, and `crewai run` only works inside a scaffolded CrewAI project (`pyproject.toml` + `crew.py`), so the runner drives the API directly instead
+2. The main agent is always built from the top-level `agent.yaml`/`SOUL.md`, as its own `Agent(...)` call
+   - **No sub-agents:** calls `main_agent.kickoff("<description>")` directly (CrewAI's single-agent execution path) — no `Task`/`Crew` involved
+   - **With sub-agents:** the crew runs as a [hierarchical process](https://docs.crewai.com/en/learn/hierarchical-process) — the main agent becomes the crew's `manager_agent` (gets `allow_delegation=True`, is *not* one of the crew's `agents`), and every entry under `agents:` in `agent.yaml` becomes a worker `Agent`, built in a loop over a `SUBAGENTS_CONFIG` list. A full sub-agent (`agents/<name>/agent.yaml`) gets its own role/goal/backstory/model; a lightweight one (just an entry in `agents:`, optionally `agents/<name>/SOUL.md`) inherits the crew's default LLM. Workers don't get an `allow_delegation` argument — only the manager needs it. The `Task` gets no `agent=` assignment; the manager allocates it to a worker dynamically at runtime (`process=Process.hierarchical`)
+3. **Knowledge:** every `.md` file under `knowledge/` (recursively) is fed to CrewAI via [`TextFileKnowledgeSource`](https://docs.crewai.com/v1.15.23/en/concepts/knowledge). That source only accepts `.txt` and resolves paths relative to `./knowledge` in the working directory, so the script embeds each doc's text, writes it at startup as a `.txt` file (nested folders joined with `__`, e.g. `sub/b.md` → `sub__b.txt`) into a throwaway `./knowledge/_gitagent_<random>/` folder, and removes that folder on exit (via `atexit`). Knowledge is attached to the `Crew` (`knowledge_sources=`) when there are sub-agents, so all agents share it, or to the main `Agent` when there are none. Unlike the prompt-based adapters, `always_load` in `knowledge/index.yaml` is not consulted — all `.md` files are loaded
+4. Writes the script to a temp file and runs it with `python3`
+5. Cleans up the temp file after execution
 
-**Requires:** `crewai` CLI installed (`pip install crewai`).
+**Requires:** Python 3, the `crewai` package (`pip install crewai`), and an API key for whichever provider the agent's model uses (e.g. `OPENAI_API_KEY`). If the agent has a `knowledge/` folder, CrewAI also embeds the docs with OpenAI `text-embedding-3-small` by default, so `OPENAI_API_KEY` is needed even when the agent's model is from another provider.
 
 ---
 
