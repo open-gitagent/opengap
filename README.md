@@ -359,6 +359,7 @@ Adapters are used by both `export` and `run`. Available adapters:
 | `claude-code` | Claude Code compatible CLAUDE.md |
 | `openai` | OpenAI Agents SDK Python code |
 | `crewai` | CrewAI YAML configuration |
+| `autogen` | AutoGen (`autogen-agentchat`) Python script |
 | `lyzr` | Lyzr Studio agent |
 | `github` | GitHub Models inference |
 | `git` | Git-native execution (run only) |

@@ -30,6 +30,7 @@
     "claude-code",
     "openai",
     "crewai",
+    "autogen",
     "langchain",
     "agent-framework",
     "agent-standard",

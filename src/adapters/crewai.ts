@@ -1,17 +1,27 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import yaml from 'js-yaml';
-import { loadAgentManifest, loadFileIfExists } from '../utils/loader.js';
+import { loadAgentManifest, loadFileIfExists, agentDirExists } from '../utils/loader.js';
 import { loadAllSkills } from '../utils/skill-loader.js';
 import { buildMcpServersMarkdown } from './shared.js';
 
-export function exportToCrewAI(dir: string): string {
-  const agentDir = resolve(dir);
-  const manifest = loadAgentManifest(agentDir);
+interface CrewAIAgentSpec {
+  role: string;
+  goal: string;
+  backstory: string;
+  allowDelegation: boolean;
+}
 
+interface CrewAIAgentEntry extends CrewAIAgentSpec {
+  name: string;
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+}
+
+function buildCrewAIAgentSpec(agentDir: string, manifest: ReturnType<typeof loadAgentManifest>): CrewAIAgentSpec {
   const soul = loadFileIfExists(join(agentDir, 'SOUL.md'));
 
-  // Parse SOUL.md for role, goal, backstory
   let role = manifest.description;
   let goal = manifest.description;
   let backstory = '';
@@ -23,7 +33,6 @@ export function exportToCrewAI(dir: string): string {
     backstory = soul.replace(/^#.*$/gm, '').trim();
   }
 
-  // Add skill descriptions as capabilities
   const skillsDir = join(agentDir, 'skills');
   const skills = loadAllSkills(skillsDir);
   if (skills.length > 0) {
@@ -33,41 +42,305 @@ export function exportToCrewAI(dir: string): string {
     backstory += `\n\nCapabilities (Skills):\n${skillDescriptions}`;
   }
 
-  // MCP servers
   const mcpSection = buildMcpServersMarkdown(manifest.mcp_servers);
   if (mcpSection) {
     backstory += `\n\n${mcpSection}`;
   }
 
-  // Build CrewAI YAML config
-  const crewConfig: Record<string, unknown> = {
-    agents: {
-      [manifest.name]: {
-        role: role.slice(0, 500),
-        goal: goal.slice(0, 500),
-        backstory: backstory.slice(0, 2000),
-        verbose: true,
-        allow_delegation: manifest.delegation?.mode === 'auto',
-      },
-    },
+  return {
+    role: role.slice(0, 500),
+    goal: goal.slice(0, 500),
+    backstory: backstory.slice(0, 2000),
+    allowDelegation: manifest.delegation?.mode === 'auto',
   };
+}
 
-  // Add sub-agents
-  if (manifest.agents) {
-    for (const [name, config] of Object.entries(manifest.agents)) {
-      const subAgentDir = join(agentDir, 'agents', name);
-      const subSoul = loadFileIfExists(join(subAgentDir, 'SOUL.md'));
+/**
+ * Build one CrewAI agent entry per sub-agent declared under `agents:` in
+ * agent.yaml (the main agent is NOT included — see buildCrewAIAgentEntries
+ * and exportToCrewAIScript, which build the main agent separately).
+ *
+ * A sub-agent can be either:
+ * - a full sub-agent: `agents/<name>/agent.yaml` (+ optional SOUL.md, skills/)
+ *   — reuses buildCrewAIAgentSpec so it gets its own role/goal/backstory and
+ *   its own model, same as the main agent.
+ * - a lightweight sub-agent: no `agents/<name>/agent.yaml`, just the
+ *   `description` from the parent's `agents:` map plus an optional
+ *   `agents/<name>/SOUL.md`. It inherits the crew's default LLM.
+ */
+function buildCrewAISubAgentEntries(agentDir: string, manifest: ReturnType<typeof loadAgentManifest>): CrewAIAgentEntry[] {
+  if (!manifest.agents) return [];
 
-      (crewConfig.agents as Record<string, unknown>)[name] = {
+  const entries: CrewAIAgentEntry[] = [];
+  for (const [name, config] of Object.entries(manifest.agents)) {
+    const subDir = join(agentDir, 'agents', name);
+
+    if (agentDirExists(subDir)) {
+      const subManifest = loadAgentManifest(subDir);
+      entries.push({
+        name,
+        ...buildCrewAIAgentSpec(subDir, subManifest),
+        model: subManifest.model?.preferred,
+        temperature: subManifest.model?.constraints?.temperature,
+        maxTokens: subManifest.model?.constraints?.max_tokens,
+      });
+    } else {
+      const subSoul = loadFileIfExists(join(subDir, 'SOUL.md'));
+      entries.push({
+        name,
         role: config.description ?? name,
         goal: config.description ?? name,
         backstory: subSoul?.replace(/^#.*$/gm, '').trim().slice(0, 2000) ?? '',
-        verbose: true,
-      };
+        allowDelegation: false,
+      });
     }
   }
 
+  return entries;
+}
+
+/** Main agent entry + every sub-agent entry, e.g. for the flat YAML export. */
+function buildCrewAIAgentEntries(agentDir: string, manifest: ReturnType<typeof loadAgentManifest>): CrewAIAgentEntry[] {
+  const main: CrewAIAgentEntry = {
+    name: manifest.name,
+    ...buildCrewAIAgentSpec(agentDir, manifest),
+    model: manifest.model?.preferred,
+    temperature: manifest.model?.constraints?.temperature,
+    maxTokens: manifest.model?.constraints?.max_tokens,
+  };
+
+  return [main, ...buildCrewAISubAgentEntries(agentDir, manifest)];
+}
+
+export function exportToCrewAI(dir: string): string {
+  const agentDir = resolve(dir);
+  const manifest = loadAgentManifest(agentDir);
+
+  const entries = buildCrewAIAgentEntries(agentDir, manifest);
+
+  const crewConfig: Record<string, unknown> = { agents: {} };
+  for (const entry of entries) {
+    (crewConfig.agents as Record<string, unknown>)[entry.name] = {
+      role: entry.role,
+      goal: entry.goal,
+      backstory: entry.backstory,
+      verbose: true,
+      allow_delegation: entry.allowDelegation,
+    };
+  }
+
   return `# CrewAI configuration generated by gitagent export\n# Source: ${manifest.name} v${manifest.version}\n\n${yaml.dump(crewConfig, { lineWidth: 120 })}`;
+}
+
+/**
+ * Generate a standalone Python script that builds and runs a CrewAI agent
+ * (or crew) using the CrewAI Python API directly.
+ *
+ * The `crewai` CLI has no `kickoff` subcommand and `crewai run` only works
+ * inside a scaffolded CrewAI project (pyproject.toml + crew.py). Driving the
+ * Python API directly avoids depending on that project structure.
+ *
+ * The main agent is always built from the top-level agent.yaml/SOUL.md, as
+ * its own Agent(...) call, separate from any sub-agents.
+ *
+ * - No sub-agents: there's nothing to delegate to and no Task/Crew needed,
+ *   so the script calls `main_agent.kickoff("<description>")` directly —
+ *   CrewAI's single-agent execution path (Agent.kickoff()).
+ * - With sub-agents: the main agent becomes the crew's `manager_agent` and
+ *   every entry under `agents:` in agent.yaml becomes a worker Agent, built
+ *   in a loop from a SUBAGENTS_CONFIG list rather than one hand-written
+ *   Agent(...) block per sub-agent. The crew runs with
+ *   `process=Process.hierarchical`: the manager is NOT one of the crew's
+ *   `agents` (it's passed separately as `manager_agent`) and the Task gets
+ *   no `agent=` assignment — the manager allocates work to the workers
+ *   dynamically at runtime instead of a task being pinned to one agent
+ *   upfront. See https://docs.crewai.com/en/learn/hierarchical-process.
+ */
+export function exportToCrewAIScript(dir: string, options: { prompt?: string } = {}): string {
+  const agentDir = resolve(dir);
+  const manifest = loadAgentManifest(agentDir);
+  const mainSpec = buildCrewAIAgentSpec(agentDir, manifest);
+  const mainModel = manifest.model?.preferred;
+  const mainTemperature = manifest.model?.constraints?.temperature;
+  const mainMaxTokens = manifest.model?.constraints?.max_tokens;
+
+  const subEntries = buildCrewAISubAgentEntries(agentDir, manifest);
+  const hasSubAgents = subEntries.length > 0;
+
+  const taskDescription = options.prompt
+    ? `${manifest.description}\n\nUser request: ${options.prompt}`
+    : manifest.description;
+
+  const needsLLM = !!mainModel || subEntries.some(e => !!e.model);
+  const knowledgeDocs = collectKnowledgeDocs(agentDir);
+  const hasKnowledge = knowledgeDocs.length > 0;
+
+  const lines: string[] = [];
+
+  lines.push('"""');
+  lines.push(`CrewAI agent definition for ${manifest.name} v${manifest.version}`);
+  lines.push('Generated by gitagent export');
+  lines.push('"""\n');
+
+  const imports = ['Agent'];
+  if (hasSubAgents) imports.push('Task', 'Crew', 'Process');
+  if (needsLLM) imports.push('LLM');
+  lines.push(`from crewai import ${imports.join(', ')}\n`);
+
+  if (hasKnowledge) {
+    lines.push('import atexit');
+    lines.push('import os');
+    lines.push('import shutil');
+    lines.push('import uuid');
+    lines.push('from crewai.knowledge.source.text_file_knowledge_source import TextFileKnowledgeSource\n');
+
+    // CrewAI resolves TextFileKnowledgeSource paths relative to ./knowledge in
+    // the working directory, so the .md files are written there as .txt under a
+    // unique throwaway subfolder and removed again on exit.
+    lines.push('KNOWLEDGE_DOCS = {');
+    for (const doc of knowledgeDocs) {
+      lines.push(`    ${JSON.stringify(doc.fileName)}: ${JSON.stringify(doc.content)},`);
+    }
+    lines.push('}\n');
+    lines.push('KNOWLEDGE_ROOT = "knowledge"');
+    lines.push('KNOWLEDGE_TMP = "_gitagent_" + uuid.uuid4().hex[:8]');
+    lines.push('_created_knowledge_root = not os.path.isdir(KNOWLEDGE_ROOT)');
+    lines.push('os.makedirs(os.path.join(KNOWLEDGE_ROOT, KNOWLEDGE_TMP), exist_ok=True)\n');
+    lines.push('def _cleanup_knowledge():');
+    lines.push('    shutil.rmtree(os.path.join(KNOWLEDGE_ROOT, KNOWLEDGE_TMP), ignore_errors=True)');
+    lines.push('    if _created_knowledge_root:');
+    lines.push('        try:');
+    lines.push('            os.rmdir(KNOWLEDGE_ROOT)');
+    lines.push('        except OSError:');
+    lines.push('            pass\n');
+    lines.push('atexit.register(_cleanup_knowledge)\n');
+    lines.push('for _name, _text in KNOWLEDGE_DOCS.items():');
+    lines.push('    with open(os.path.join(KNOWLEDGE_ROOT, KNOWLEDGE_TMP, _name), "w", encoding="utf-8") as _f:');
+    lines.push('        _f.write(_text)\n');
+    lines.push('knowledge_sources = [');
+    lines.push('    TextFileKnowledgeSource(file_paths=[f"{KNOWLEDGE_TMP}/{name}" for name in KNOWLEDGE_DOCS]),');
+    lines.push(']\n');
+  }
+
+  if (mainModel) {
+    lines.push(`main_llm = LLM(${pyLlmArgs(mainModel, mainTemperature, mainMaxTokens)})\n`);
+  }
+
+  lines.push('main_agent = Agent(');
+  lines.push(`    role=${pyStr(mainSpec.role)},`);
+  lines.push(`    goal=${pyStr(mainSpec.goal)},`);
+  lines.push(`    backstory=${pyStr(mainSpec.backstory)},`);
+  if (hasSubAgents) lines.push('    allow_delegation=True,');
+  if (mainModel) lines.push('    llm=main_llm,');
+  // Without sub-agents there is no Crew, so knowledge attaches to the Agent.
+  if (hasKnowledge && !hasSubAgents) lines.push('    knowledge_sources=knowledge_sources,');
+  lines.push('    verbose=True,');
+  lines.push(')\n');
+
+  if (!hasSubAgents) {
+    lines.push('if __name__ == "__main__":');
+    lines.push(`    result = main_agent.kickoff(${pyStr(taskDescription)})`);
+    lines.push('    print(result.raw)\n');
+    return lines.join('\n');
+  }
+
+  lines.push('SUBAGENTS_CONFIG = [');
+  for (const entry of subEntries) {
+    lines.push('    {');
+    lines.push(`        "name": ${pyStr(entry.name)},`);
+    lines.push(`        "role": ${pyStr(entry.role)},`);
+    lines.push(`        "goal": ${pyStr(entry.goal)},`);
+    lines.push(`        "backstory": ${pyStr(entry.backstory)},`);
+    lines.push(`        "llm": ${pyLlmDict(entry)},`);
+    lines.push('    },');
+  }
+  lines.push(']\n');
+
+  lines.push('subagents_by_name = {}');
+  lines.push('for cfg in SUBAGENTS_CONFIG:');
+  lines.push('    agent_llm = LLM(**cfg["llm"]) if cfg["llm"] else None');
+  lines.push('    subagents_by_name[cfg["name"]] = Agent(');
+  lines.push('        role=cfg["role"],');
+  lines.push('        goal=cfg["goal"],');
+  lines.push('        backstory=cfg["backstory"],');
+  lines.push('        llm=agent_llm,');
+  lines.push('        verbose=True,');
+  lines.push('    )\n');
+
+  // No agent= assignment: under Process.hierarchical the manager_agent
+  // allocates tasks to crew members dynamically at runtime.
+  lines.push('main_task = Task(');
+  lines.push(`    description=${pyStr(taskDescription)},`);
+  lines.push(`    expected_output=${pyStr('A complete, helpful response to the request above.')},`);
+  lines.push(')\n');
+
+  // main_agent is the manager — it orchestrates, it isn't a crew member
+  // executing tasks itself, so it's passed as manager_agent, not in agents=.
+  lines.push('crew = Crew(');
+  lines.push('    agents=list(subagents_by_name.values()),');
+  lines.push('    tasks=[main_task],');
+  lines.push('    manager_agent=main_agent,');
+  lines.push('    process=Process.hierarchical,');
+  if (hasKnowledge) lines.push('    knowledge_sources=knowledge_sources,');
+  lines.push('    verbose=True,');
+  lines.push(')\n');
+
+  lines.push('if __name__ == "__main__":');
+  lines.push('    result = crew.kickoff()');
+  lines.push('    print(result)\n');
+
+  return lines.join('\n');
+}
+
+interface KnowledgeDoc {
+  /** Flat, unique .txt filename the doc is written under at runtime. */
+  fileName: string;
+  content: string;
+}
+
+/**
+ * Collect every .md file under `knowledge/` (recursively). CrewAI's
+ * TextFileKnowledgeSource only takes .txt, so each doc is given a flat .txt
+ * name (nested folders joined with "__") and the script writes it out as a
+ * temp file at runtime.
+ */
+function collectKnowledgeDocs(agentDir: string): KnowledgeDoc[] {
+  const root = join(agentDir, 'knowledge');
+  if (!existsSync(root)) return [];
+
+  const docs: KnowledgeDoc[] = [];
+  const walk = (dir: string, prefix: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      if (entry.isDirectory()) {
+        walk(join(dir, entry.name), `${prefix}${entry.name}__`);
+      } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.md')) {
+        const content = readFileSync(join(dir, entry.name), 'utf-8').trim();
+        if (!content) continue;
+        docs.push({ fileName: `${prefix}${entry.name.replace(/\.md$/i, '')}.txt`, content });
+      }
+    }
+  };
+  walk(root, '');
+  return docs;
+}
+
+function pyLlmDict(entry: Pick<CrewAIAgentEntry, 'model' | 'temperature' | 'maxTokens'>): string {
+  if (!entry.model) return 'None';
+  const parts = [`"model": ${pyStr(entry.model)}`];
+  if (entry.temperature !== undefined) parts.push(`"temperature": ${entry.temperature}`);
+  if (entry.maxTokens !== undefined) parts.push(`"max_tokens": ${entry.maxTokens}`);
+  return `{${parts.join(', ')}}`;
+}
+
+function pyLlmArgs(model: string, temperature: number | undefined, maxTokens: number | undefined): string {
+  const args = [`model=${pyStr(model)}`];
+  if (temperature !== undefined) args.push(`temperature=${temperature}`);
+  if (maxTokens !== undefined) args.push(`max_tokens=${maxTokens}`);
+  return args.join(', ');
+}
+
+function pyStr(value: string): string {
+  return `"""${value.replace(/\\/g, '\\\\').replace(/"""/g, '\\"\\"\\"')}"""`;
 }
 
 function parseSoulSections(markdown: string): Record<string, string> {

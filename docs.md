@@ -31,6 +31,7 @@ A framework-agnostic, git-native standard for defining AI agents. `opengap` is t
   - [Claude](#claude-runner)
   - [OpenAI](#openai-runner)
   - [CrewAI](#crewai-runner)
+  - [AutoGen](#autogen-runner)
   - [OpenClaw](#openclaw-runner)
   - [Nanobot](#nanobot-runner)
   - [Lyzr](#lyzr-runner)
@@ -442,6 +443,7 @@ opengap export [options]
 | `claude-code` | Markdown | Claude Code `CLAUDE.md` file |
 | `openai` | Python | OpenAI Agents SDK code with tool definitions |
 | `crewai` | YAML | CrewAI crew configuration |
+| `autogen` | Python | AutoGen script (`AssistantAgent`, `SelectorGroupChat` for sub-agents) |
 | `openclaw` | JSON + Markdown | OpenClaw workspace (config + AGENTS.md + skills) |
 | `nanobot` | JSON + Markdown | Nanobot config.json + system prompt |
 | `lyzr` | JSON | Lyzr Studio API payload (agent creation) |
@@ -641,7 +643,7 @@ Either `--repo` or `--dir` is required.
 
 **Session continuation (claude adapter).** `--continue` resumes the most recent Claude Code conversation in the working directory — combine it with `--workspace` to pick which directory's session to continue. `--resume <sessionId>` reopens an exact session, and `--session-id <uuid>` pins a new session to a known ID so scripts can resume it deterministically later. `--continue` and `--resume` are mutually exclusive. These flags are rejected for non-claude adapters rather than silently ignored.
 
-`--workspace` lets an agent definition live separately from the repository it operates on. It is honored by adapters that can safely set the spawned process working directory directly, including `claude`, `openai`, `crewai`, `openclaw`, and `nanobot`. Adapters that generate an isolated runtime workspace, such as `opencode`, `gemini`, and `gitclaw`, continue to run from that prepared workspace to avoid overwriting files such as `AGENTS.md`, `GEMINI.md`, or `agent.yaml` in the target repository.
+`--workspace` lets an agent definition live separately from the repository it operates on. It is honored by adapters that can safely set the spawned process working directory directly, including `claude`, `openai`, `crewai`, `autogen`, `openclaw`, and `nanobot`. Adapters that generate an isolated runtime workspace, such as `opencode`, `gemini`, and `gitclaw`, continue to run from that prepared workspace to avoid overwriting files such as `AGENTS.md`, `GEMINI.md`, or `agent.yaml` in the target repository.
 
 **Available adapters:**
 
@@ -650,6 +652,7 @@ Either `--repo` or `--dir` is required.
 | `claude` | Interactive / one-shot | Claude Code CLI |
 | `openai` | One-shot | `OPENAI_API_KEY`, Python 3, `openai-agents` |
 | `crewai` | One-shot | CrewAI CLI |
+| `autogen` | One-shot | Python 3.10+, `autogen-agentchat`, `autogen-ext[<provider>]` |
 | `openclaw` | One-shot (`-p` required) | `ANTHROPIC_API_KEY`, OpenClaw CLI |
 | `nanobot` | Interactive / one-shot | `ANTHROPIC_API_KEY`, Nanobot CLI |
 | `lyzr` | One-shot (`-p` required) | `LYZR_API_KEY` |
@@ -830,6 +833,10 @@ Python source code for the OpenAI Agents SDK. Generates:
 
 YAML configuration for CrewAI. Parses SOUL.md to extract role, goal, and backstory. Includes skill descriptions in backstory. Maps sub-agents from `agents/` directory.
 
+### autogen
+
+Standalone Python script for AutoGen (`autogen-agentchat` 0.4+). See [AutoGen Runner](#autogen-runner) for how the agent maps onto AutoGen and what is lossy.
+
 ### openclaw
 
 OpenClaw workspace format. Returns structured output with:
@@ -941,11 +948,34 @@ Adapter: `openai`
 
 Adapter: `crewai`
 
-1. Exports agent as CrewAI YAML config
-2. Writes to temp file
-3. Runs `crewai kickoff --config <tmpfile>`
+1. Exports agent as a standalone Python script using the CrewAI Python API directly — the `crewai` CLI has no `kickoff` subcommand, and `crewai run` only works inside a scaffolded CrewAI project (`pyproject.toml` + `crew.py`), so the runner drives the API directly instead
+2. The main agent is always built from the top-level `agent.yaml`/`SOUL.md`, as its own `Agent(...)` call
+   - **No sub-agents:** calls `main_agent.kickoff("<description>")` directly (CrewAI's single-agent execution path) — no `Task`/`Crew` involved
+   - **With sub-agents:** the crew runs as a [hierarchical process](https://docs.crewai.com/en/learn/hierarchical-process) — the main agent becomes the crew's `manager_agent` (gets `allow_delegation=True`, is *not* one of the crew's `agents`), and every entry under `agents:` in `agent.yaml` becomes a worker `Agent`, built in a loop over a `SUBAGENTS_CONFIG` list. A full sub-agent (`agents/<name>/agent.yaml`) gets its own role/goal/backstory/model; a lightweight one (just an entry in `agents:`, optionally `agents/<name>/SOUL.md`) inherits the crew's default LLM. Workers don't get an `allow_delegation` argument — only the manager needs it. The `Task` gets no `agent=` assignment; the manager allocates it to a worker dynamically at runtime (`process=Process.hierarchical`)
+3. **Knowledge:** every `.md` file under `knowledge/` (recursively) is fed to CrewAI via [`TextFileKnowledgeSource`](https://docs.crewai.com/v1.15.23/en/concepts/knowledge). That source only accepts `.txt` and resolves paths relative to `./knowledge` in the working directory, so the script embeds each doc's text, writes it at startup as a `.txt` file (nested folders joined with `__`, e.g. `sub/b.md` → `sub__b.txt`) into a throwaway `./knowledge/_gitagent_<random>/` folder, and removes that folder on exit (via `atexit`). Knowledge is attached to the `Crew` (`knowledge_sources=`) when there are sub-agents, so all agents share it, or to the main `Agent` when there are none. Unlike the prompt-based adapters, `always_load` in `knowledge/index.yaml` is not consulted — all `.md` files are loaded
+4. Writes the script to a temp file and runs it with `python3`
+5. Cleans up the temp file after execution
 
-**Requires:** `crewai` CLI installed (`pip install crewai`).
+**Requires:** Python 3, the `crewai` package (`pip install crewai`), and an API key for whichever provider the agent's model uses (e.g. `OPENAI_API_KEY`). If the agent has a `knowledge/` folder, CrewAI also embeds the docs with OpenAI `text-embedding-3-small` by default, so `OPENAI_API_KEY` is needed even when the agent's model is from another provider.
+
+---
+
+### AutoGen Runner
+
+Adapter: `autogen`
+
+1. Exports the agent as a standalone Python script using the AutoGen (`autogen-agentchat` 0.4+) API, writes it to a temp file and runs it with the first interpreter that works out of `python3`, `python`, `py` (so it also runs on Windows). The same script is available without running via `opengap export -f autogen`; it takes the task as command-line arguments
+2. **System message** — each agent's `AssistantAgent` gets the same prompt as `-a prompt`: SOUL.md, RULES.md, DUTIES.md, skills (full instructions), `always_load` knowledge, MCP servers (as documentation), compliance constraints and memory
+3. **Agents**
+   - **No sub-agents:** one `AssistantAgent`, streamed to the terminal with `Console(agent.run_stream(...))`
+   - **With sub-agents:** every entry under `agents:` in `agent.yaml` becomes an `AssistantAgent`, and together with the main agent they run in a `SelectorGroupChat` where the model picks the next speaker. The main agent is the coordinator: its system message lists the team and tells it to end with `TERMINATE` when done. The run stops on `TERMINATE` or after `runtime.max_turns` messages (default 20). A full sub-agent (`agents/<name>/agent.yaml`) gets its own prompt, tools and model; a lightweight one (an entry in `agents:` plus optional `agents/<name>/SOUL.md`) inherits the main agent's model. Agent names are sanitised to Python identifiers (`fact-checker` → `fact_checker`)
+4. **Tools** — each `tools/*.yaml` (narrowed to the names in `tools:` when present) becomes an `async def` whose parameters are `Annotated[type, "description"]`, wrapped in a `FunctionTool` and passed to the agent. The function bodies are placeholders returning a "not implemented" string, as the tool yamls only describe the interface. Agents with tools set `reflect_on_tool_use=True`
+5. **Model** — `model.preferred` picks the client: an explicit `provider/model` (or `provider:model`) prefix with `openai`, `azure`, `anthropic`, `ollama`, `gemini` or `llama`, otherwise by name (`gpt-*`/`o*` → OpenAI, `claude-*` → Anthropic, `gemini-*` → Gemini via its OpenAI-compatible endpoint, `llama-*` → Llama API, `llama`/`mistral`/`qwen`/`phi`/`gemma`/`deepseek` → Ollama). `temperature` and `max_tokens` are passed through. With no `model.preferred`, set `LLM_MODEL`. For models AutoGen doesn't know, set `LLM_FUNCTION_CALLING`, `LLM_VISION`, `LLM_JSON_OUTPUT`, `LLM_STRUCTURED_OUTPUT` and `LLM_FAMILY` to override the model capabilities
+6. Every model client is closed in a `finally` block, then the temp file is removed
+
+**Requires:** Python 3.10+, `pip install autogen-agentchat "autogen-ext[openai,anthropic]"` (use the extra for your provider: `openai`, `anthropic`, `ollama`, `azure`), and the provider's key (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `LLAMA_API_KEY`, or `AZURE_OPENAI_*`).
+
+**Not mapped:** `model.fallback`, `top_p` and other constraints, `delegation` settings, `runtime.timeout`, `hooks`, `workflows`, session flags (`--continue` etc. are claude-only), and MCP servers (listed in the system message only, not connected as tools).
 
 ---
 
@@ -1406,6 +1436,7 @@ gitagent/
 │   │   ├── claude-code.ts          # CLAUDE.md format
 │   │   ├── openai.ts               # Python OpenAI Agents SDK
 │   │   ├── crewai.ts               # CrewAI YAML
+│   │   ├── autogen.ts              # AutoGen Python script
 │   │   ├── openclaw.ts             # OpenClaw workspace
 │   │   ├── nanobot.ts              # Nanobot config
 │   │   ├── lyzr.ts                 # Lyzr Studio API payload
@@ -1414,6 +1445,7 @@ gitagent/
 │   │   ├── claude.ts               # Spawns Claude Code CLI
 │   │   ├── openai.ts               # Spawns Python with OpenAI SDK
 │   │   ├── crewai.ts               # Spawns CrewAI CLI
+│   │   ├── autogen.ts              # Spawns Python with AutoGen
 │   │   ├── openclaw.ts             # Spawns OpenClaw CLI
 │   │   ├── nanobot.ts              # Spawns Nanobot CLI
 │   │   ├── lyzr.ts                 # Calls Lyzr REST API

@@ -7,6 +7,7 @@ import { resolveRepo } from '../utils/git-cache.js';
 import { runWithClaude } from '../runners/claude.js';
 import { runWithOpenAI } from '../runners/openai.js';
 import { runWithCrewAI } from '../runners/crewai.js';
+import { runWithAutogen } from '../runners/autogen.js';
 import { runWithOpenClaw } from '../runners/openclaw.js';
 import { runWithNanobot } from '../runners/nanobot.js';
 import { runWithLyzr } from '../runners/lyzr.js';
@@ -33,7 +34,7 @@ interface RunOptions {
 export const runCommand = new Command('run')
   .description('Run an agent from a git repository or local directory')
   .option('-r, --repo <url>', 'Git repository URL')
-  .option('-a, --adapter <name>', 'Adapter: claude, openai, crewai, openclaw, nanobot, lyzr, github, opencode, gemini, gitclaw, git, prompt', 'claude')
+  .option('-a, --adapter <name>', 'Adapter: claude, openai, crewai, autogen, openclaw, nanobot, lyzr, github, opencode, gemini, gitclaw, git, prompt', 'claude')
   .option('-b, --branch <branch>', 'Git branch/tag to clone', 'main')
   .option('--refresh', 'Force re-clone (pull latest)', false)
   .option('--no-cache', 'Clone to temp dir, delete on exit')
@@ -125,7 +126,10 @@ export const runCommand = new Command('run')
           runWithOpenAI(agentDir, manifest, { workspace: options.workspace });
           break;
         case 'crewai':
-          runWithCrewAI(agentDir, manifest, { workspace: options.workspace });
+          runWithCrewAI(agentDir, manifest, { prompt: options.prompt, workspace: options.workspace });
+          break;
+        case 'autogen':
+          runWithAutogen(agentDir, manifest, { prompt: options.prompt, workspace: options.workspace });
           break;
         case 'openclaw':
           runWithOpenClaw(agentDir, manifest, { prompt: options.prompt, workspace: options.workspace });
@@ -167,7 +171,7 @@ export const runCommand = new Command('run')
           break;
         default:
           error(`Unknown adapter: ${options.adapter}`);
-          info('Supported adapters: claude, openai, crewai, openclaw, nanobot, lyzr, github, opencode, gemini, gitclaw, git, prompt');
+          info('Supported adapters: claude, openai, crewai, autogen, openclaw, nanobot, lyzr, github, opencode, gemini, gitclaw, git, prompt');
           process.exit(1);
       }
     } catch (e) {

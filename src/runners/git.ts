@@ -7,6 +7,7 @@ import { exportToSystemPrompt } from '../adapters/system-prompt.js';
 import { runWithClaude } from './claude.js';
 import { runWithOpenAI } from './openai.js';
 import { runWithCrewAI } from './crewai.js';
+import { runWithAutogen } from './autogen.js';
 import { runWithOpenClaw } from './openclaw.js';
 import { runWithNanobot } from './nanobot.js';
 import { runWithLyzr } from './lyzr.js';
@@ -101,6 +102,9 @@ export async function runWithGit(
         break;
       case 'crewai':
         runWithCrewAI(agentDir, manifest, { workspace: options.workspace });
+        break;
+      case 'autogen':
+        runWithAutogen(agentDir, manifest, { prompt: options.prompt, workspace: options.workspace });
         break;
       case 'openclaw':
         runWithOpenClaw(agentDir, manifest, { prompt: options.prompt, workspace: options.workspace });
